@@ -1,75 +1,65 @@
-# React + TypeScript + Vite
+# 🍳 CocinApp - SaaS de Gestión Gastronómica
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+CocinApp es una plataforma SaaS (Software as a Service) diseñada para digitalizar y optimizar la gestión de restaurantes. Permite a los dueños administrar su catálogo, controlar ventas, gestionar mesas y autogenerar una carta digital web (Menú QR) con marca personalizada.
 
-Currently, two official plugins are available:
+## 🚀 Tech Stack (Arquitectura)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Frontend:** React 18 + Vite
+- **Lenguaje:** TypeScript
+- **Estilos:** Tailwind CSS v4 + Lucide React (Iconos)
+- **Componentes UI:** Shadcn UI / Radix UI primitives
+- **Gestión de Estado:** Zustand
+- **Enrutamiento:** React Router DOM v6
+- **Backend & Base de Datos:** Supabase (PostgreSQL, Auth, RLS Policies)
+- **Despliegue (CI/CD):** Vercel
 
-## React Compiler
+## ⚙️ Requisitos Previos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Antes de clonar el proyecto, asegúrate de tener instalado en tu máquina:
+- [Node.js](https://nodejs.org/) (Versión 18 o superior)
+- Git
 
-## Expanding the ESLint configuration
+## 🛠️ Instalación y Configuración Local
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+**1. Clonar el repositorio**
+\`\`\`bash
+git clone https://github.com/ivanbohor/cocinapp.git
+cd cocinapp
+\`\`\`
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**2. Instalar dependencias**
+\`\`\`bash
+npm install
+\`\`\`
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+**3. Variables de Entorno**
+Crea un archivo llamado `.env.local` en la raíz del proyecto. **NUNCA subas este archivo a GitHub**. Solicita las credenciales al administrador del proyecto y agrégalas con este formato:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+\`\`\`env
+VITE_SUPABASE_URL=https://[ID-DEL-PROYECTO].supabase.co
+VITE_SUPABASE_ANON_KEY=[TU-CLAVE-ANONIMA-PUBLICA]
+\`\`\`
 
-```
+**4. Iniciar el Servidor de Desarrollo**
+\`\`\`bash
+npm run dev
+\`\`\`
+El proyecto estará corriendo en `http://localhost:5173`.
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## 🗄️ Esquema de Base de Datos (Supabase)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+El sistema utiliza las siguientes tablas principales con seguridad RLS (Row Level Security):
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- `usuarios`: Gestión de roles (Admin/Dueño, Cajero). Vinculado a Supabase Auth.
+- `restaurantes`: Información del tenant (local). Almacena configuración visual (logo, colores) y el `slug` único para la URL de la carta digital web (`/m/:slug`).
+- `productos`: Catálogo de platos. Incluye descripciones opcionales y lógica de ordenamiento de categorías.
+- `mesas`, `gastos`, `ventas`: Tablas operativas para el flujo financiero y de punto de venta (POS).
 
-```
+## 🚀 Despliegue a Producción
+
+El proyecto está configurado con CI/CD a través de Vercel. 
+Cualquier cambio empujado (push) a la rama `main` disparará una nueva construcción automáticamente. 
+*(Nota: El enrutamiento de la SPA está gestionado mediante el archivo `vercel.json`).*
+
+---
+*Desarrollado con ❤️ por el equipo de CocinApp.*
