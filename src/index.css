@@ -1,0 +1,12 @@
+/* src/index.css */
+@import "tailwindcss";
+
+/* MAGIA V4: Le decimos a Tailwind que obedezca a nuestro botón (.dark) y NO al sistema operativo */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Garantizamos que el lienzo de React ocupe toda la pantalla */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
