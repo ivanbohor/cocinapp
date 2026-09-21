@@ -2,14 +2,14 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
 
-// Vite expone las variables de entorno a través de import.meta.env
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Verificación de seguridad para evitar que la app crashee si faltan las claves
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Faltan las credenciales de Supabase en el archivo .env.local')
+// 🔍 ESCÁNER DE DIAGNÓSTICO: Verificamos qué URL está intentando usar el navegador
+if (!supabaseUrl) {
+  console.error("🚨 ERROR: VITE_SUPABASE_URL está vacía o indefinida.");
+} else {
+  console.log("🔌 Intentando conectar a Supabase en la URL:", supabaseUrl);
 }
 
-// Inicializamos y exportamos el cliente para usarlo en toda la aplicación
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
