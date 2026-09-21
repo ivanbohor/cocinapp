@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Plus, Search, Edit, Trash2, UtensilsCrossed, X, ArrowUp, ArrowDown, ListOrdered } from 'lucide-react';
+import { Loader2, Plus, Search, Edit, Trash2, X, ArrowUp, ArrowDown, ListOrdered } from 'lucide-react';
 
 interface Producto {
   id: string;

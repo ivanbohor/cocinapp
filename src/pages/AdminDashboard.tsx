@@ -251,7 +251,7 @@ export default function AdminDashboard() {
                 <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
+                  formatter={(value: any ) => [`$${value.toLocaleString()}`, '']}
                   labelFormatter={(label) => `Día ${label}`}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}/>
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(value: number) => [`${value} vendidos`, 'Cantidad']}
+                    formatter={(value: any) => [`${value} vendidos`, 'Cantidad']}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }}/>
