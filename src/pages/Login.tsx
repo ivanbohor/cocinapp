@@ -1,126 +1,172 @@
 // src/pages/Login.tsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, ChefHat } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // Estado para el ojito
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  
   const navigate = useNavigate();
+  const { setAuth } = useAuthStore();
+  
+  // Estado para alternar entre "Iniciar Sesión" (true) y "Registrarse" (false)
+  const [isLoginView, setIsLoginView] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    nombreRestaurante: '' // Este campo solo se usará al registrarse
+  });
+
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setErrorMsg('');
+    setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
+      if (isLoginView) {
+        // ==========================================
+        // 1. FLUJO DE INICIAR SESIÓN
+        // ==========================================
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (authError) throw authError;
 
-      if (error) throw error;
-      if (data.user) navigate('/admin/dashboard');
+        // Buscar a qué restaurante pertenece este usuario
+        const { data: userData, error: userError } = await supabase
+          .from('usuarios')
+          .select('restaurante_id, rol')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (userError) throw userError;
+
+        // Guardar la sesión en la memoria de la app y entrar al sistema
+        setAuth(authData.user, userData.restaurante_id, userData.rol);
+        navigate('/admin/dashboard');
+
+      } else {
+        // ==========================================
+        // 2. FLUJO DE CREAR TIENDA (REGISTRO)
+        // ==========================================
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (authError) throw authError;
+
+        // Si el usuario se creó correctamente en Supabase Auth
+        if (authData.user) {
+          // A. Crear su base de datos de Restaurante
+          const { data: restData, error: restError } = await supabase
+            .from('restaurantes')
+            .insert([{ nombre: formData.nombreRestaurante }])
+            .select()
+            .single();
+            
+          if (restError) throw new Error('Error al crear el restaurante: ' + restError.message);
+
+          // B. Crear su Perfil de Usuario y vincularlo al restaurante
+          const { error: userError } = await supabase
+            .from('usuarios')
+            .insert([{
+              id: authData.user.id,
+              restaurante_id: restData.id,
+              rol: 'admin' // Le damos rol de Dueño/Admin
+            }]);
+            
+          if (userError) throw new Error('Error al asignar permisos: ' + userError.message);
+
+          alert('¡Tienda creada con éxito! Ahora puedes iniciar sesión con tu nueva cuenta.');
+          setIsLoginView(true); // Devolvemos al usuario a la vista de Login
+          setFormData({ ...formData, password: '' }); // Limpiamos la contraseña por seguridad
+        }
+      }
     } catch (error: any) {
-      console.error("Error de login:", error);
-      setErrorMsg("Correo o contraseña incorrectos.");
+      console.error('Error de autenticación:', error);
+      alert(`❌ ${error.message || 'Ocurrió un error. Verifica tus datos.'}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    // Contenedor principal con imagen de fondo
-    <div 
-      className="min-h-screen w-full relative flex items-center justify-center lg:justify-end lg:pr-24 p-4"
-      style={{
-        backgroundImage: 'url(https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center'
-      }}
-    >
-      {/* Capa oscura semi-transparente para resaltar la tarjeta blanca */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
-
-      {/* Tarjeta flotante del formulario */}
-      <div className="relative z-10 w-full max-w-[450px] bg-white rounded-[2rem] p-8 md:p-10 shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-500">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 transition-colors duration-300">
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
         
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-orange-500 tracking-tight mb-1">CocinApp</h1>
-          <h2 className="text-xl font-bold text-slate-900">Ingresa a tu cuenta</h2>
+        <div className="flex flex-col items-center mb-8">
+          <div className="bg-indigo-600 p-3 rounded-full mb-4 shadow-lg shadow-indigo-600/30">
+            <ChefHat size={32} className="text-white" />
+          </div>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+            Cocin<span className="text-indigo-600 dark:text-indigo-400">App</span>
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-center font-medium">
+            {isLoginView ? 'Inicia sesión en tu panel de control' : 'Crea tu carta digital en segundos'}
+          </p>
         </div>
 
-        {errorMsg && (
-          <div className="mb-6 flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-xl border border-red-100">
-            <AlertCircle size={16} />
-            <p>{errorMsg}</p>
-          </div>
-        )}
+        <form onSubmit={handleAuth} className="space-y-5">
+          {/* CAMPO DINÁMICO: Solo se muestra si estamos en modo "Crear Tienda" */}
+          {!isLoginView && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nombre de tu Local</label>
+              <Input
+                required
+                placeholder="Ej: La Esquina Burger"
+                value={formData.nombreRestaurante}
+                onChange={(e) => setFormData({ ...formData, nombreRestaurante: e.target.value })}
+                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white h-11"
+              />
+            </div>
+          )}
 
-        <form className="space-y-5" onSubmit={handleLogin}>
-          
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Correo electrónico o usuario *</label>
-            <Input 
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Correo Electrónico</label>
+            <Input
               required
-              type="email" 
-              placeholder="Ingresa tu correo o usuario" 
-              className="w-full h-12 bg-slate-50 border-transparent focus:bg-white rounded-xl text-slate-900"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
+              type="email"
+              placeholder="ejemplo@correo.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="dark:bg-slate-800 dark:border-slate-700 dark:text-white h-11"
             />
           </div>
 
-          <div className="space-y-1.5 relative">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Contraseña *</label>
-            <div className="relative">
-              <Input 
-                required
-                type={showPassword ? "text" : "password"} 
-                placeholder="Ingresa tu contraseña" 
-                className="w-full h-12 bg-slate-50 border-transparent focus:bg-white rounded-xl pr-12 text-slate-900"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-              />
-              <button 
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Contraseña</label>
+            <Input
+              required
+              type="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="dark:bg-slate-800 dark:border-slate-700 dark:text-white h-11"
+            />
+            {!isLoginView && <p className="text-xs text-slate-400">Mínimo 6 caracteres.</p>}
           </div>
 
-          <div className="flex items-center justify-between text-sm pt-2">
-            <label className="flex items-center gap-2 cursor-pointer text-slate-600 font-medium">
-              <input type="checkbox" className="rounded border-slate-300 text-orange-500 focus:ring-orange-500 w-4 h-4" />
-              Recordarme
-            </label>
-            <a href="#" className="font-semibold text-slate-900 hover:underline">
-              ¿Olvidaste tu contraseña?
-            </a>
-          </div>
-
-          <div className="pt-4 space-y-3">
-            <Button type="submit" disabled={loading} className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-lg font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
-              {loading ? <Loader2 size={20} className="animate-spin" /> : 'Iniciar sesión'}
-            </Button>
-
-            <Button type="button" variant="outline" className="w-full h-12 bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-base font-bold transition-all">
-              Quiero crear mi tienda
-            </Button>
-          </div>
+          <Button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-12 text-lg font-bold shadow-md">
+            {isLoading ? <Loader2 className="animate-spin mr-2" /> : (isLoginView ? 'Ingresar al Panel' : 'Crear mi Tienda')}
+          </Button>
         </form>
+
+        <div className="mt-8 text-center pt-6 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => {
+              setIsLoginView(!isLoginView);
+              setFormData({ email: '', password: '', nombreRestaurante: '' }); // Limpia formulario al cambiar
+            }}
+            className="text-sm text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline font-medium transition-colors"
+          >
+            {isLoginView ? '¿No tienes cuenta? Crea tu tienda gratis' : '¿Ya tienes una tienda? Inicia Sesión'}
+          </button>
+        </div>
 
       </div>
     </div>

@@ -1,19 +1,32 @@
 // src/stores/useAuthStore.ts
 import { create } from 'zustand';
+import { User } from '@supabase/supabase-js';
 
+// Definimos el "contrato" (tipado) estricto para TypeScript
 interface AuthState {
-  rol: 'admin' | 'mozo' | null;
+  user: User | null;
   restauranteId: string | null;
-  nombreEmpleado: string | null;
-  setAuth: (rol: 'admin' | 'mozo', restauranteId: string, nombreEmpleado: string) => void;
+  rol: string | null;
+  setAuth: (user: User | null, restauranteId: string | null, rol: string | null) => void;
   clearAuth: () => void;
 }
 
-// Esta memoria guardará quién eres y a qué restaurante perteneces mientras uses la app
 export const useAuthStore = create<AuthState>((set) => ({
-  rol: null,
+  user: null,
   restauranteId: null,
-  nombreEmpleado: null,
-  setAuth: (rol, restauranteId, nombreEmpleado) => set({ rol, restauranteId, nombreEmpleado }),
-  clearAuth: () => set({ rol: null, restauranteId: null, nombreEmpleado: null }),
+  rol: null,
+  
+  // Actualizamos la memoria con los datos exactos que envía el Login
+  setAuth: (user, restauranteId, rol) => set({ 
+    user, 
+    restauranteId, 
+    rol 
+  }),
+  
+  // Limpiamos todo al cerrar sesión
+  clearAuth: () => set({ 
+    user: null, 
+    restauranteId: null, 
+    rol: null 
+  }),
 }));
