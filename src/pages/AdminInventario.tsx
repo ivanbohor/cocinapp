@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 // CAMBIO CLAVE: Usamos íconos universales para evitar crasheos por versión
 import { Loader2, Bell, CheckCircle, Trash2, Calendar, Package, AlertTriangle } from 'lucide-react';
 
+import { toast } from '@/stores/useToastStore';
+import { confirm } from '@/components/ui/confirm-dialog';
+
 interface Recordatorio {
   id: string;
   articulo: string;
@@ -57,63 +60,93 @@ export default function AdminInventario() {
   };
 
   const handleGuardar = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  e.preventDefault();
+  setIsSubmitting(true);
 
-    try {
-      const { data, error } = await supabase
-        .from('recordatorios_stock')
-        .insert([{
-          restaurante_id: restauranteId,
-          articulo: formData.articulo.trim(),
-          notas: formData.notas.trim() || null,
-          fecha_aviso: formData.fecha_aviso,
-          estado: 'Pendiente'
-        }])
-        .select();
+  try {
+    const { data, error } = await supabase
+      .from('recordatorios_stock')
+      .insert([{
+        restaurante_id: restauranteId,
+        articulo: formData.articulo.trim(),
+        notas: formData.notas.trim() || null,
+        fecha_aviso: formData.fecha_aviso,
+        estado: 'Pendiente'
+      }])
+      .select();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      if (data) {
-        const nuevaLista = [...recordatorios, data[0]].sort((a, b) => 
-          new Date(a.fecha_aviso).getTime() - new Date(b.fecha_aviso).getTime()
-        );
-        setRecordatorios(nuevaLista);
-      }
-      
-      setFormData({ ...formData, articulo: '', notas: '' });
-      
-    } catch (error) {
-      console.error('Error al guardar alerta:', error);
-      alert('Hubo un error al programar la alerta.');
-    } finally {
-      setIsSubmitting(false);
+    if (data) {
+      const nuevaLista = [...recordatorios, data[0]].sort((a, b) =>
+        new Date(a.fecha_aviso).getTime() - new Date(b.fecha_aviso).getTime()
+      );
+      setRecordatorios(nuevaLista);
     }
+
+    setFormData({ ...formData, articulo: '', notas: '' });
+
+    // 🔄 OLA 2D: nuevo toast de éxito (antes era silencioso)
+    toast.success('Alerta programada', `Te avisaremos por "${formData.articulo}".`);
+  } catch (error) {
+    console.error('Error al guardar alerta:', error);
+    toast.error(
+      'No pudimos programar la alerta',
+      error instanceof Error ? error.message : 'Intentá de nuevo en unos segundos.'
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
   };
 
+
   const handleResolver = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('recordatorios_stock')
-        .update({ estado: 'Resuelto' })
-        .eq('id', id);
-        
-      if (error) throw error;
-      setRecordatorios(recordatorios.filter(r => r.id !== id));
-    } catch (error) {
-      console.error('Error al resolver:', error);
-    }
+  const rec = recordatorios.find(r => r.id === id);
+  const backup = recordatorios;
+
+  // Optimistic: sacamos de la lista al instante
+  setRecordatorios(recordatorios.filter(r => r.id !== id));
+
+  try {
+    const { error } = await supabase
+      .from('recordatorios_stock')
+      .update({ estado: 'Resuelto' })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    // 🔄 OLA 2D: nuevo toast de éxito (antes era silencioso)
+    toast.success('¡Comprado!', `"${rec?.articulo ?? 'El insumo'}" se marcó como resuelto.`);
+  } catch (error) {
+    console.error('Error al resolver:', error);
+    setRecordatorios(backup);
+    toast.error('No pudimos marcar como resuelto', 'Intentá de nuevo en unos segundos.');
+  }
   };
 
   const handleEliminar = async (id: string) => {
-    if (!window.confirm('¿Eliminar esta alerta definitivamente?')) return;
-    try {
-      const { error } = await supabase.from('recordatorios_stock').delete().eq('id', id);
-      if (error) throw error;
-      setRecordatorios(recordatorios.filter(r => r.id !== id));
-    } catch (error) {
-      console.error('Error al eliminar:', error);
-    }
+  const rec = recordatorios.find(r => r.id === id);
+
+  const ok = await confirm({
+    title: 'Eliminar alerta',
+    description: `"${rec?.articulo ?? 'Esta alerta'}" se eliminará definitivamente. Esta acción no se puede deshacer.`,
+    confirmLabel: 'Eliminar',
+    destructive: true,
+  });
+  if (!ok) return;
+
+  const backup = recordatorios;
+  setRecordatorios(recordatorios.filter(r => r.id !== id));
+
+  try {
+    const { error } = await supabase.from('recordatorios_stock').delete().eq('id', id);
+    if (error) throw error;
+    toast.success('Alerta eliminada');
+  } catch (error) {
+    console.error('Error al eliminar:', error);
+    setRecordatorios(backup);
+    toast.error('No pudimos eliminar la alerta', 'Intentá de nuevo en unos segundos.');
+  }
   };
 
   const esUrgente = (fechaAviso: string) => {

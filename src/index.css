@@ -47,6 +47,70 @@
   --shadow-card:  0 10px 30px -10px rgb(15 23 42 / 0.15);
   --shadow-brand: 0 10px 25px -10px rgb(249 115 22 / 0.45);
 }
+/* src/index.css — después del bloque @theme */
+
+/* ============================================
+   SCROLLBARS — estilo sutil y coherente
+   ============================================ */
+
+/* Scrollbar delgado y estilizado para cualquier contenedor */
+.scrollbar-thin {
+  scrollbar-width: thin;                 /* Firefox */
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent; /* Firefox */
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.5);
+}
+
+/* Variante para fondos oscuros (sidebar) */
+.scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+}
+
+.scrollbar-dark::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.4);
+}
+
+/* Variante para ocultar por completo (si la preferís) */
+.scrollbar-none {
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge legacy */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;                 /* Chrome, Safari */
+}
+
 
 html, body, #root {
   height: 100%;

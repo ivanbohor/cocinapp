@@ -6,6 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Plus, Search, Edit, Trash2, Bell, X, Package } from 'lucide-react';
 
+import { toast } from '@/stores/useToastStore';
+import { confirm } from '@/components/ui/confirm-dialog';
+import { clearNotifiedAlarm } from '@/hooks/useStockAlarms';
+
+
 interface Insumo {
   id: string;
   nombre: string;
@@ -22,8 +27,7 @@ export default function AdminStock() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Estado para controlar si el usuario cerró la alerta flotante
-  const [toastDismissed, setToastDismissed] = useState(false);
+
   
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
@@ -72,6 +76,7 @@ export default function AdminStock() {
         .order('nombre', { ascending: true });
 
       if (error) throw error;
+
       if (data) setInsumos(data);
     } catch (error) {
       console.error('Error al cargar stock:', error);
@@ -81,83 +86,109 @@ export default function AdminStock() {
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        restaurante_id: restauranteId,
-        nombre: itemForm.nombre.trim(),
-        categoria: itemForm.categoria,
-        cantidad: parseFloat(itemForm.cantidad),
-        unidad_medida: itemForm.unidad_medida
-      };
+  e.preventDefault();
+  setIsSubmitting(true);
+  try {
+    const payload = {
+      restaurante_id: restauranteId,
+      nombre: itemForm.nombre.trim(),
+      categoria: itemForm.categoria,
+      cantidad: parseFloat(itemForm.cantidad),
+      unidad_medida: itemForm.unidad_medida
+    };
 
-      if (activeItemId) {
-        const { error } = await supabase.from('insumos').update(payload).eq('id', activeItemId);
-        if (error) throw error;
-        setInsumos(insumos.map(i => i.id === activeItemId ? { ...i, ...payload } : i));
-      } else {
-        const { data, error } = await supabase.from('insumos').insert([payload]).select();
-        if (error) throw error;
-        if (data) setInsumos([...insumos, data[0]]);
-      }
-      closeItemModal();
-    } catch (error) {
-      console.error('Error al guardar insumo:', error);
-      alert('Hubo un error al guardar los datos.');
-    } finally {
-      setIsSubmitting(false);
+    if (activeItemId) {
+      const { error } = await supabase.from('insumos').update(payload).eq('id', activeItemId);
+      if (error) throw error;
+      setInsumos(insumos.map(i => i.id === activeItemId ? { ...i, ...payload } : i));
+      toast.success('Insumo actualizado', `"${payload.nombre}" se guardó correctamente.`);
+    } else {
+      const { data, error } = await supabase.from('insumos').insert([payload]).select();
+      if (error) throw error;
+      if (data) setInsumos([...insumos, data[0]]);
+      toast.success('Insumo agregado', `"${payload.nombre}" ya está en tu inventario.`);
     }
+    closeItemModal();
+  } catch (error) {
+    console.error('Error al guardar insumo:', error);
+    toast.error(
+      'No pudimos guardar el insumo',
+      error instanceof Error ? error.message : 'Revisá los datos e intentá de nuevo.'
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!window.confirm('¿Eliminar este insumo del inventario?')) return;
-    try {
-      const { error } = await supabase.from('insumos').delete().eq('id', id);
-      if (error) throw error;
-      setInsumos(insumos.filter(i => i.id !== id));
-    } catch (error) {
-      console.error('Error al eliminar:', error);
-    }
+  const insumo = insumos.find(i => i.id === id);
+
+  const ok = await confirm({
+    title: 'Eliminar insumo',
+    description: `"${insumo?.nombre ?? 'Este insumo'}" se eliminará del inventario. Esta acción no se puede deshacer.`,
+    confirmLabel: 'Eliminar',
+    destructive: true,
+  });
+  if (!ok) return;
+
+  const backup = insumos;
+  setInsumos(insumos.filter(i => i.id !== id));
+
+  try {
+    const { error } = await supabase.from('insumos').delete().eq('id', id);
+    if (error) throw error;
+    toast.success('Insumo eliminado');
+  } catch (error) {
+    console.error('Error al eliminar:', error);
+    setInsumos(backup);
+    toast.error('No pudimos eliminar el insumo', 'Intentá de nuevo en unos segundos.');
+  }
   };
 
   const handleSaveAlarm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeItemId) return;
-    setIsSubmitting(true);
+  e.preventDefault();
+  if (!activeItemId) return;
+  setIsSubmitting(true);
 
-    try {
-      // Guardamos la fecha en formato ISO estándar para la base de datos
-      const isoDate = alarmDate ? new Date(alarmDate).toISOString() : null;
+  try {
+    const isoDate = alarmDate ? new Date(alarmDate).toISOString() : null;
 
-      const { error } = await supabase
-        .from('insumos')
-        .update({ fecha_alarma: isoDate })
-        .eq('id', activeItemId);
-        
-      if (error) throw error;
-      
-      setInsumos(insumos.map(i => i.id === activeItemId ? { ...i, fecha_alarma: isoDate } : i));
-      
-      // Reiniciamos el toast dismiss si programamos una nueva alarma para permitir que nos avise
-      setToastDismissed(false); 
-      closeAlertModal();
-    } catch (error) {
-      console.error('Error al guardar alarma:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    const { error } = await supabase
+      .from('insumos')
+      .update({ fecha_alarma: isoDate })
+      .eq('id', activeItemId);
+
+    if (error) throw error;
+     // 🔔 Invalidamos la marca para que la próxima alarma vuelva a notificar
+    clearNotifiedAlarm(activeItemId);
+
+    setInsumos(insumos.map(i => i.id === activeItemId ? { ...i, fecha_alarma: isoDate } : i));
+    closeAlertModal();
+    toast.success('Alerta programada', `Te avisaremos el ${new Date(alarmDate).toLocaleString()}.`);
+  } catch (error) {
+    console.error('Error al guardar alarma:', error);
+    toast.error('No pudimos programar la alerta', 'Intentá de nuevo en unos segundos.');
+  } finally {
+    setIsSubmitting(false);
+  }
   };
 
-  const clearAlarm = async () => {
-    if (!activeItemId) return;
-    try {
-      await supabase.from('insumos').update({ fecha_alarma: null }).eq('id', activeItemId);
-      setInsumos(insumos.map(i => i.id === activeItemId ? { ...i, fecha_alarma: null } : i));
-      closeAlertModal();
-    } catch (error) {
-      console.error('Error al limpiar alarma:', error);
-    }
+  // En clearAlarm, después de actualizar:
+const clearAlarm = async () => {
+  if (!activeItemId) return;
+  try {
+    const { error } = await supabase.from('insumos').update({ fecha_alarma: null }).eq('id', activeItemId);
+    if (error) throw error;
+
+       // 🔔 Limpiamos la marca porque ya no hay alarma
+    clearNotifiedAlarm(activeItemId);
+    setInsumos(insumos.map(i => i.id === activeItemId ? { ...i, fecha_alarma: null } : i));
+    closeAlertModal();
+    toast.info('Alerta quitada', 'Este insumo ya no te va a notificar.');
+  } catch (error) {
+    console.error('Error al limpiar alarma:', error);
+    toast.error('No pudimos quitar la alerta');
+  }
   };
 
   const openItemModal = (insumo?: Insumo) => {
@@ -208,7 +239,6 @@ export default function AdminStock() {
   };
 
   const filteredInsumos = insumos.filter(i => i.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
-  const insumosUrgentes = insumos.filter(i => esUrgente(i.fecha_alarma)).length;
 
   if (loading) {
     return (
@@ -400,24 +430,7 @@ export default function AdminStock() {
         </div>
       )}
 
-      {/* MODAL: TOAST DE NOTIFICACIÓN FLOTANTE */}
-      {insumosUrgentes > 0 && !toastDismissed && (
-        <div className="fixed bottom-6 right-6 bg-red-600 text-white p-4 rounded-xl shadow-2xl z-50 animate-in slide-in-from-bottom-8 flex items-start gap-4 max-w-sm border border-red-500">
-          <Bell className="h-6 w-6 shrink-0 animate-bounce" />
-          <div className="flex-1">
-            <h4 className="font-bold text-lg leading-tight mb-1">¡Alarma de Stock!</h4>
-            <p className="text-red-100 text-sm">
-              Tienes {insumosUrgentes} insumo(s) que requieren reposición urgente. Revisa la tabla.
-            </p>
-          </div>
-          <button 
-            onClick={() => setToastDismissed(true)} 
-            className="text-red-200 hover:text-white hover:bg-red-700 p-1 rounded-md transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-      )}
+      
 
     </div>
   );

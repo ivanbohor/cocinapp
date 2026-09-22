@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Store, Link as LinkIcon, Palette, MessageSquare, Copy, CheckCircle2, ExternalLink, Image as ImageIcon } from 'lucide-react';
 
+import { toast } from '@/stores/useToastStore';
+
+
 export default function AdminRestaurant() {
   const { restauranteId } = useAuthStore();
   const [loading, setLoading] = useState(true);
@@ -58,31 +61,43 @@ export default function AdminRestaurant() {
   };
 
   const handleGuardar = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('restaurantes')
-        .update({
-          nombre: formData.nombre,
-          slug: formData.slug || null,
-          color_principal: formData.color_principal,
-          color_fondo: formData.color_fondo,
-          mensaje_bienvenida: formData.mensaje_bienvenida,
-          logo_url: formData.logo_url.trim() || null
-        })
-        .eq('id', restauranteId);
+  e.preventDefault();
+  setIsSubmitting(true);
+  try {
+    const { error } = await supabase
+      .from('restaurantes')
+      .update({
+        nombre: formData.nombre,
+        slug: formData.slug || null,
+        color_principal: formData.color_principal,
+        color_fondo: formData.color_fondo,
+        mensaje_bienvenida: formData.mensaje_bienvenida,
+        logo_url: formData.logo_url.trim() || null
+      })
+      .eq('id', restauranteId);
 
-      if (error) {
-        if (error.code === '23505') throw new Error('Este enlace personalizado ya está en uso.');
-        throw error;
+    if (error) {
+      if (error.code === '23505') {
+        // 🔄 OLA 2D: mensaje específico para slug duplicado
+        toast.error(
+          'Ese enlace ya está en uso',
+          'Probá con otro slug (ej: "mi-restaurante-2").'
+        );
+        return;
       }
-      alert('✅ Configuración guardada con éxito.');
-    } catch (error: any) {
-      alert(`❌ ${error.message || 'Error al guardar los datos.'}`);
-    } finally {
-      setIsSubmitting(false);
+      throw error;
     }
+
+    toast.success('Configuración guardada', 'Tus cambios ya están visibles en la carta digital.');
+  } catch (error) {
+    console.error('Error al guardar restaurante:', error);
+    toast.error(
+      'No pudimos guardar los cambios',
+      error instanceof Error ? error.message : 'Intentá de nuevo en unos segundos.'
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
   };
 
   const publicUrl = formData.slug ? `${window.location.origin}/m/${formData.slug}` : '';

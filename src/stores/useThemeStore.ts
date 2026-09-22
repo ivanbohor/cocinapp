@@ -4,18 +4,28 @@ import { persist } from 'zustand/middleware';
 
 interface ThemeState {
   isDark: boolean;
+  setTheme: (isDark: boolean) => void;
   toggleTheme: () => void;
 }
 
-// Usamos el middleware "persist" para que Zustand guarde esto automáticamente en el navegador
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      isDark: false, // Por defecto iniciará en modo claro
+      isDark: false,
+      setTheme: (isDark) => set({ isDark }),
       toggleTheme: () => set((state) => ({ isDark: !state.isDark })),
     }),
     {
-      name: 'cocinapp-theme', // Nombre de la variable secreta en el navegador
+      name: 'cocinapp-theme',
+      // Migración: si el usuario tenía el theme viejo en 'theme', lo leemos
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const legacy = localStorage.getItem('theme');
+        if (legacy && legacy !== (state.isDark ? 'dark' : 'light')) {
+          state.setTheme(legacy === 'dark');
+          localStorage.removeItem('theme'); // Limpiamos el legacy
+        }
+      },
     }
   )
 );

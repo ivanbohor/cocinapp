@@ -16,6 +16,9 @@ import AdminGastos from '@/pages/AdminGastos';
 import AdminStock from '@/pages/AdminStock';
 import AdminVentas from '@/pages/AdminVentas';
 
+import { Toaster } from '@/components/ui/toast';
+import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
+
 export default function App() {
   const { isDark } = useThemeStore();
 
@@ -51,6 +54,8 @@ export default function App() {
           <Route path="/pos" element={<PosDashboard />} />
         </Route>
       </Routes>
+      <Toaster />
+      <ConfirmDialogHost />
     </BrowserRouter>
   );
 }
