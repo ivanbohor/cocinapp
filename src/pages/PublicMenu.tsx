@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Loader2, Search, UtensilsCrossed } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { useIsolateTheme } from '@/hooks/useIsolateTheme';
+// Nota: la carta pública NO usa <Input> de shadcn/ui.
+// Usa un <input> nativo para aislarse completamente del dark mode del admin.
 
 interface RestauranteInfo {
   nombre: string;
