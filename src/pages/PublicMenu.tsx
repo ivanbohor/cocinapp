@@ -161,7 +161,15 @@ export default function PublicMenu() {
       <div className="max-w-2xl mx-auto px-4 -mt-5 relative z-20">
         <div className="bg-white p-2 rounded-xl shadow-lg border border-slate-100 flex items-center">
           <Search className="text-slate-400 ml-2 mr-2" size={20} />
-          <Input placeholder="Buscar en el menú..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-lg px-0" />
+          <input
+            type="text"
+            inputMode="search"
+            placeholder="Buscar en el menú..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border-0 bg-transparent text-lg px-0 py-2 text-slate-900 placeholder:text-slate-400
+                      focus:outline-none focus:ring-0"
+          />
         </div>
       </div>
 
