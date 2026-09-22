@@ -122,3 +122,9 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* La carta pública siempre usa modo claro para controles nativos
+   (scrollbars, date pickers, selects nativos, etc.) */
+.public-menu-scope {
+  color-scheme: light;
+}

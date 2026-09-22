@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Loader2, Search, UtensilsCrossed } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useIsolateTheme } from '@/hooks/useIsolateTheme';
 
 interface RestauranteInfo {
   nombre: string;
@@ -25,6 +26,9 @@ interface ProductoInfo {
 
 export default function PublicMenu() {
   const { slug } = useParams<{ slug: string }>();
+
+   // 🔒 Aísla el tema del admin. La carta pública usa solo la paleta del restaurante.
+  useIsolateTheme();
   
   const [restaurante, setRestaurante] = useState<RestauranteInfo | null>(null);
   const [productos, setProductos] = useState<ProductoInfo[]>([]);
@@ -128,7 +132,8 @@ export default function PublicMenu() {
 
   return (
     // INYECCIÓN DE COLOR DE FONDO
-    <div className="min-h-screen pb-12 font-sans transition-colors duration-500" style={{ backgroundColor: restaurante.color_fondo }}>
+    <div  className="public-menu-scope min-h-screen pb-12 font-sans transition-colors duration-500"
+    style={{ backgroundColor: restaurante.color_fondo }}>
       
       {/* HEADER PERSONALIZADO */}
       <header 
