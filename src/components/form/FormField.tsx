@@ -12,12 +12,16 @@ export interface FormFieldProps extends InputProps {
 }
 
 export const FormField = React.forwardRef<HTMLInputElement, FormFieldProps>(
-  ({ label, hint, error, id, className, containerClassName, ...props }, ref) => {
+  (
+    { label, hint, error, id, className, containerClassName, ...props },
+    ref,
+  ) => {
     const generatedId = React.useId();
     const fieldId = id ?? generatedId;
     const hintId = hint ? `${fieldId}-hint` : undefined;
     const errorId = error ? `${fieldId}-error` : undefined;
-    const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+    const describedBy =
+      [hintId, errorId].filter(Boolean).join(" ") || undefined;
 
     return (
       <div className={cn("space-y-2", containerClassName)}>
@@ -42,6 +46,6 @@ export const FormField = React.forwardRef<HTMLInputElement, FormFieldProps>(
         )}
       </div>
     );
-  }
+  },
 );
 FormField.displayName = "FormField";
