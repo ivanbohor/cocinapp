@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { toast } from '@/stores/useToastStore';
 import { InstagramIcon } from '@/components/icons/InstagramIcon';
+import { QRModal } from '@/components/modals/QRModal';
+import { QrCode } from 'lucide-react';   // ← agregar al import de lucide
 
 
 export default function AdminRestaurant() {
@@ -19,6 +21,7 @@ export default function AdminRestaurant() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -408,6 +411,8 @@ export default function AdminRestaurant() {
                     <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-indigo-600 dark:text-indigo-400 break-all select-all">
                       {publicUrl}
                     </div>
+
+                    {/* Fila 1: Copiar + Ver Carta */}
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -424,6 +429,17 @@ export default function AdminRestaurant() {
                         </Button>
                       </a>
                     </div>
+
+                    {/* Fila 2: Generar QR (NUEVO) */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsQRModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100 hover:text-brand-800 dark:border-brand-900/50 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-950/50 text-xs font-semibold"
+                    >
+                      <QrCode size={14} />
+                      Generar QR para imprimir
+                    </Button>
                   </div>
                 ) : (
                   <div className="text-xs text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-lg">
@@ -566,6 +582,15 @@ export default function AdminRestaurant() {
           </Button>
         </div>
       </form>
+
+      {/* Modal de QR */}
+      <QRModal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        url={publicUrl}
+        nombreRestaurante={formData.nombre}
+        logoUrl={formData.logo_url || null}
+      />
     </div>
   );
 }
