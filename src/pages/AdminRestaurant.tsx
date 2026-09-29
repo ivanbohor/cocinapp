@@ -6,20 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SectionHint } from '@/components/ui/section-hint';
 import {
-  Loader2,
-  Store,
-  Link as LinkIcon,
-  Palette,
-  MessageSquare,
-  Copy,
-  CheckCircle2,
-  ExternalLink,
-  Image as ImageIcon,
-  Smartphone,
-  Search,
-  UtensilsCrossed,
+  Loader2, Store, Link as LinkIcon, Palette, MessageSquare,
+  Copy, CheckCircle2, ExternalLink, Image as ImageIcon,
+  Smartphone, Search, UtensilsCrossed, Sparkles, Phone,
 } from 'lucide-react';
 import { toast } from '@/stores/useToastStore';
+import { InstagramIcon } from '@/components/icons/InstagramIcon';
+
 
 export default function AdminRestaurant() {
   const { restauranteId } = useAuthStore();
@@ -35,6 +28,9 @@ export default function AdminRestaurant() {
     color_tarjeta: '#ffffff',
     mensaje_bienvenida: '',
     logo_url: '',
+    whatsapp: '',
+    instagram: '',
+    mostrar_sugerencias: true,
   });
 
   useEffect(() => {
@@ -60,6 +56,9 @@ export default function AdminRestaurant() {
           color_tarjeta: data.color_tarjeta || '#ffffff',
           mensaje_bienvenida: data.mensaje_bienvenida || '¡Bienvenidos a nuestro menú digital!',
           logo_url: data.logo_url || '',
+          whatsapp: data.whatsapp || '',
+          instagram: data.instagram || '',
+          mostrar_sugerencias: data.mostrar_sugerencias ?? true,
         });
       }
     } catch (error) {
@@ -83,29 +82,37 @@ export default function AdminRestaurant() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const basePayload: Record<string, unknown> = {
+      // Construimos el payload completo
+      const fullPayload: Record<string, unknown> = {
         nombre: formData.nombre,
         slug: formData.slug || null,
         color_principal: formData.color_principal,
         color_fondo: formData.color_fondo,
+        color_tarjeta: formData.color_tarjeta,
         mensaje_bienvenida: formData.mensaje_bienvenida,
         logo_url: formData.logo_url.trim() || null,
+        whatsapp: formData.whatsapp.trim() || null,
+        instagram: formData.instagram.trim() || null,
+        mostrar_sugerencias: formData.mostrar_sugerencias,
       };
 
-      // Intentamos guardar con color_tarjeta si existe en Supabase
+      // Intentamos guardar todo
       let { error } = await supabase
         .from('restaurantes')
-        .update({
-          ...basePayload,
-          color_tarjeta: formData.color_tarjeta,
-        })
+        .update(fullPayload)
         .eq('id', restauranteId);
 
-      // Si la columna aún no fue migrada en la BD (código 42703 / error de columna inexistente), guardamos el resto
-      if (error && (error.code === '42703' || error.message?.includes('color_tarjeta'))) {
+      // Fallback: si alguna columna nueva no existe en la BD, quitamos esos campos y reintentamos
+      if (error && (error.code === '42703' || error.message?.includes('column'))) {
+        const safePayload = { ...fullPayload };
+        delete safePayload.color_tarjeta;
+        delete safePayload.whatsapp;
+        delete safePayload.instagram;
+        delete safePayload.mostrar_sugerencias;
+
         const fallback = await supabase
           .from('restaurantes')
-          .update(basePayload)
+          .update(safePayload)
           .eq('id', restauranteId);
         error = fallback.error;
       }
@@ -158,7 +165,7 @@ export default function AdminRestaurant() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* CABECERA CON SECTION HINT (UX-01) */}
+      {/* CABECERA */}
       <div className="flex items-center gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -204,7 +211,49 @@ export default function AdminRestaurant() {
           </div>
         </div>
 
-        {/* PERSONALIZACIÓN DEL MENÚ DIGITAL + LIVE SMARTPHONE PREVIEW (UX-02) */}
+        {/* CONTACTO Y REDES */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+            <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <Phone size={18} className="text-sky-500" /> Contacto y Redes
+              <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                Opcional
+              </span>
+            </h3>
+          </div>
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <Phone size={16} /> WhatsApp
+              </label>
+              <Input
+                placeholder="+54 9 11 1234-5678"
+                value={formData.whatsapp}
+                onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+              />
+              <p className="text-xs text-slate-400">
+                Se mostrará como botón de contacto en tu carta digital.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <InstagramIcon size={16} /> Instagram
+              </label>
+              <Input
+                placeholder="@turestaurante"
+                value={formData.instagram}
+                onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+              />
+              <p className="text-xs text-slate-400">
+                Se mostrará como enlace a tu perfil en la carta digital.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* PERSONALIZACIÓN DEL MENÚ DIGITAL */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-between">
             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -248,7 +297,7 @@ export default function AdminRestaurant() {
                 />
               </div>
 
-              {/* PALETA DE 3 COLORES: MARCA, FONDO, TARJETAS */}
+              {/* PALETA DE 3 COLORES */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
@@ -302,6 +351,45 @@ export default function AdminRestaurant() {
                 </div>
               </div>
 
+              {/* TOGGLE: MOSTRAR SUGERENCIAS */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 shrink-0">
+                      <Sparkles size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-800 dark:text-white">
+                        Mostrar Sugerencias del Chef
+                      </p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-snug">
+                        Destacá platos al inicio de tu carta. Ideal para promociones del día
+                        o especialidades de la casa.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.mostrar_sugerencias}
+                    aria-label="Mostrar sugerencias del chef"
+                    onClick={() =>
+                      setFormData({ ...formData, mostrar_sugerencias: !formData.mostrar_sugerencias })
+                    }
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-2 ${
+                      formData.mostrar_sugerencias ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                        formData.mostrar_sugerencias ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
               {/* ENLACE Y BOTONES DE COMPARTIR */}
               <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
@@ -345,7 +433,7 @@ export default function AdminRestaurant() {
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: LIVE SMARTPHONE MOCKUP (UX-02) */}
+            {/* COLUMNA DERECHA: LIVE SMARTPHONE MOCKUP */}
             <div className="lg:col-span-6 flex flex-col items-center justify-center">
               <div className="text-center mb-2">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1.5">
@@ -354,20 +442,16 @@ export default function AdminRestaurant() {
                 <p className="text-[11px] text-slate-400">Renderizado en tiempo real</p>
               </div>
 
-              {/* Smartphone Frame */}
               <div className="w-[280px] sm:w-[310px] h-[500px] rounded-[38px] p-2.5 bg-slate-900 border-4 border-slate-700 dark:border-slate-800 shadow-2xl relative flex flex-col overflow-hidden select-none">
-                {/* Dynamic Notch */}
                 <div className="absolute top-3.5 left-1/2 -translate-x-1/2 w-24 h-4 bg-black rounded-full z-30 flex items-center justify-center">
                   <div className="w-2 h-2 rounded-full bg-slate-800 mr-2"></div>
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-900/50"></div>
                 </div>
 
-                {/* Inner Screen */}
                 <div
                   className="w-full h-full rounded-[28px] overflow-y-auto overflow-x-hidden flex flex-col transition-colors duration-300 relative text-left"
                   style={{ backgroundColor: formData.color_fondo }}
                 >
-                  {/* Smartphone Header with dynamic color */}
                   <div
                     className="pt-8 pb-5 px-3 text-center text-white relative shadow-sm transition-colors duration-300"
                     style={{ backgroundColor: formData.color_principal }}
@@ -394,7 +478,6 @@ export default function AdminRestaurant() {
                     </div>
                   </div>
 
-                  {/* Minimalist Search Bar in Preview */}
                   <div className="px-3 sticky top-1 z-20 mt-1.5">
                     <div className="bg-white/85 backdrop-blur-md rounded-lg shadow-2xs border border-slate-200/80 p-1.5 flex items-center gap-1.5">
                       <Search size={11} className="text-slate-400 ml-1" />
@@ -402,7 +485,30 @@ export default function AdminRestaurant() {
                     </div>
                   </div>
 
-                  {/* Sample Menu Items with color_tarjeta */}
+                  {/* Preview de sugerencias (si está activo) */}
+                  {formData.mostrar_sugerencias && (
+                    <div className="p-3 pb-0">
+                      <div
+                        className="rounded-lg p-2.5 shadow-2xs"
+                        style={{ backgroundColor: formData.color_principal }}
+                      >
+                        <div className="flex items-center gap-1 mb-1.5">
+                          <Sparkles size={10} className="text-white/80" />
+                          <span className="text-[9px] font-black uppercase tracking-wider text-white/90">
+                            Sugerencias
+                          </span>
+                        </div>
+                        <div
+                          className="rounded-md p-1.5"
+                          style={{ backgroundColor: formData.color_tarjeta }}
+                        >
+                          <p className="font-bold text-[10px] text-slate-800">Plato sugerido</p>
+                          <span className="text-[10px] font-black text-slate-900">$ 7.500</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="p-3 space-y-3 flex-1 text-slate-800">
                     <div>
                       <h5
@@ -412,7 +518,6 @@ export default function AdminRestaurant() {
                         DESTACADOS
                       </h5>
                       <div className="space-y-2">
-                        {/* Plato con foto */}
                         <div
                           className="rounded-xl p-2.5 shadow-2xs border border-black/5 flex items-center justify-between gap-2 transition-colors"
                           style={{ backgroundColor: formData.color_tarjeta }}
@@ -427,7 +532,6 @@ export default function AdminRestaurant() {
                           </div>
                         </div>
 
-                        {/* Plato sin foto (formato compacto tradicional) */}
                         <div
                           className="rounded-xl p-2.5 shadow-2xs border border-black/5 flex flex-col justify-between gap-1 transition-colors"
                           style={{ backgroundColor: formData.color_tarjeta }}

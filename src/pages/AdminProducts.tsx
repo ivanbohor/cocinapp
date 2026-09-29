@@ -20,7 +20,8 @@ import {
   Upload,
   Download,
   CheckSquare,
-  Square
+  Square,
+  Sparkles,   // ← NUEVO (sugerencias)
 } from 'lucide-react';
 
 interface Producto {
@@ -31,6 +32,7 @@ interface Producto {
   category: string;
   status: string;
   image_url: string | null;
+  es_sugerencia: boolean;   // ← NUEVO (sugerencias)
 }
 
 export default function AdminProducts() {
@@ -56,7 +58,8 @@ export default function AdminProducts() {
     price: '',
     category: 'Platos Principales',
     status: 'Activo',
-    image_url: ''
+    image_url: '',
+    es_sugerencia: false,   // ← NUEVO (sugerencias)
   });
 
   useEffect(() => {
@@ -100,7 +103,8 @@ export default function AdminProducts() {
         price: parseFloat(formData.price),
         category: formData.category,
         status: formData.status,
-        image_url: formData.image_url.trim() || null
+        image_url: formData.image_url.trim() || null,
+        es_sugerencia: formData.es_sugerencia,   // ← NUEVO (sugerencias)
       };
 
       if (activeId) {
@@ -136,7 +140,6 @@ export default function AdminProducts() {
     });
     if (!ok) return;
 
-    // 🔄 OLA 2B: Optimistic delete — sacamos de la lista antes de esperar respuesta
     const backup = productos;
     setProductos(productos.filter(p => p.id !== id));
     setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
@@ -147,13 +150,13 @@ export default function AdminProducts() {
       toast.success('Producto eliminado');
     } catch (error) {
       console.error('Error al eliminar:', error);
-      setProductos(backup); // Revertimos si falla
+      setProductos(backup);
       toast.error('No pudimos eliminar el producto', 'Intentá de nuevo en unos segundos.');
     }
   };
 
   // ===============================================
-  // SELECCIÓN MÚLTIPLE Y ELIMINACIÓN EN LOTE
+  // SELECCIÓN MÚLTIPLE
   // ===============================================
   const filtered = productos.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -188,7 +191,6 @@ export default function AdminProducts() {
     const backup = productos;
     const backupSelected = selectedIds;
 
-    // Optimistic
     setProductos(productos.filter(p => !selectedIds.includes(p.id)));
     setSelectedIds([]);
 
@@ -269,16 +271,14 @@ export default function AdminProducts() {
 
       const separator = lines[0].includes(';') ? ';' : ',';
 
-      // 🔄 OLA 2B: Trackeamos filas rechazadas para informar al usuario
       const rechazados: number[] = [];
       const nuevosProductos = lines.slice(1).map((line, idx) => {
         const cols = line.split(separator).map(c => c.trim().replace(/^"|"$/g, ''));
         const name = cols[0];
         const price = parseFloat(cols[2]);
 
-        // Validación mínima: nombre y precio numérico válido
         if (!name || isNaN(price)) {
-          rechazados.push(idx + 2); // +2 por el header y el 0-index
+          rechazados.push(idx + 2);
           return null;
         }
 
@@ -306,7 +306,6 @@ export default function AdminProducts() {
 
       if (data) setProductos(prev => [...prev, ...data]);
 
-      // 🔄 OLA 2B: Toast con resumen
       if (rechazados.length > 0) {
         toast.warning(
           `${data?.length ?? 0} productos importados`,
@@ -376,6 +375,37 @@ export default function AdminProducts() {
     }
   };
 
+  // ===============================================
+  // HELPERS: Abrir modal en modo "nuevo" o "editar"
+  // ===============================================
+  const abrirModalNuevo = () => {
+    setActiveId(null);
+    setFormData({
+      name: '',
+      description: '',
+      price: '',
+      category: 'Platos Principales',
+      status: 'Activo',
+      image_url: '',
+      es_sugerencia: false,   // ← NUEVO (sugerencias)
+    });
+    setIsModalOpen(true);
+  };
+
+  const abrirModalEditar = (prod: Producto) => {
+    setActiveId(prod.id);
+    setFormData({
+      name: prod.name,
+      description: prod.description || '',
+      price: prod.price.toString(),
+      category: prod.category,
+      status: prod.status,
+      image_url: prod.image_url || '',
+      es_sugerencia: prod.es_sugerencia ?? false,   // ← NUEVO (sugerencias)
+    });
+    setIsModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-ink-500 dark:text-ink-400">
@@ -431,13 +461,8 @@ export default function AdminProducts() {
             <ListOrdered size={18} className="mr-2" /> Organizar Carta
           </Button>
 
-          <Button
-            onClick={() => {
-              setActiveId(null);
-              setFormData({ name: '', description: '', price: '', category: 'Platos Principales', status: 'Activo', image_url: '' });
-              setIsModalOpen(true);
-            }}
-          >
+          {/* ✅ CORREGIDO: se usa el helper abrirModalNuevo */}
+          <Button onClick={abrirModalNuevo}>
             <Plus size={18} className="mr-2" /> Nuevo
           </Button>
         </div>
@@ -504,10 +529,27 @@ export default function AdminProducts() {
                       )}
                     </button>
                   </td>
+
+                  {/* ✅ PARTE E: celda de "Producto" con badge de sugerencia */}
                   <td className="px-6 py-4">
-                    <p className="font-bold dark:text-white">{prod.name}</p>
-                    {prod.description && <p className="text-xs text-ink-500 dark:text-ink-400 truncate max-w-xs">{prod.description}</p>}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold dark:text-white">{prod.name}</p>
+                      {prod.es_sugerencia && (
+                        <span
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider"
+                          title="Sugerencia del Chef"
+                        >
+                          <Sparkles size={10} /> Sugerencia
+                        </span>
+                      )}
+                    </div>
+                    {prod.description && (
+                      <p className="text-xs text-ink-500 dark:text-ink-400 truncate max-w-xs">
+                        {prod.description}
+                      </p>
+                    )}
                   </td>
+
                   <td className="px-6 py-4">
                     <span className="bg-ink-100 dark:bg-ink-800 text-ink-700 dark:text-ink-300 px-2.5 py-1 rounded-md text-xs font-medium border border-transparent dark:border-ink-700">
                       {prod.category}
@@ -520,14 +562,11 @@ export default function AdminProducts() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right space-x-1">
+                    {/* ✅ CORREGIDO: se usa el helper abrirModalEditar */}
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => {
-                        setActiveId(prod.id);
-                        setFormData({ name: prod.name, description: prod.description || '', price: prod.price.toString(), category: prod.category, status: prod.status, image_url: prod.image_url || '' });
-                        setIsModalOpen(true);
-                      }}
+                      onClick={() => abrirModalEditar(prod)}
                       className="text-ink-400 hover:text-brand-500"
                     >
                       <Edit size={18} />
@@ -584,14 +623,91 @@ export default function AdminProducts() {
               <button onClick={() => setIsModalOpen(false)} className="text-ink-400"><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="p-5 space-y-4">
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Nombre</label><Input required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Descripción (Opcional)</label><textarea rows={2} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="flex w-full rounded-field border border-ink-200 bg-transparent px-3 py-2 text-sm outline-none resize-none dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Precio ($)</label><Input required type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-                <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Estado</label><select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="flex h-10 w-full rounded-field border border-ink-200 bg-transparent px-3 text-sm outline-none dark:bg-ink-800 dark:text-white dark:border-ink-700"><option value="Activo">Activo</option><option value="Pausado">Pausado</option></select></div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">Nombre</label>
+                <Input
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
               </div>
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Categoría</label><Input required value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">URL Imagen (Opcional)</label><Input value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">Descripción (Opcional)</label>
+                <textarea
+                  rows={2}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="flex w-full rounded-field border border-ink-200 bg-transparent px-3 py-2 text-sm outline-none resize-none dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium dark:text-ink-300">Precio ($)</label>
+                  <Input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium dark:text-ink-300">Estado</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="flex h-11 w-full rounded-field border border-ink-200 bg-transparent px-3 text-sm outline-none dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                  >
+                    <option value="Activo">Activo</option>
+                    <option value="Pausado">Pausado</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* ✅ NUEVO: Toggle es_sugerencia */}
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.es_sugerencia}
+                  onChange={(e) => setFormData({ ...formData, es_sugerencia: e.target.checked })}
+                  className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-600 dark:text-amber-400" />
+                    <span className="text-sm font-semibold text-slate-800 dark:text-white">
+                      Marcar como Sugerencia del Chef
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                    Se destacará al inicio de tu carta digital.
+                  </p>
+                </div>
+              </label>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">Categoría</label>
+                <Input
+                  required
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">URL Imagen (Opcional)</label>
+                <Input
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
+              </div>
+
               <Button type="submit" disabled={isSubmitting} className="w-full mt-4">
                 {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : 'Guardar'}
               </Button>
