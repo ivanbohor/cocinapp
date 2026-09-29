@@ -4,10 +4,22 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Store, Link as LinkIcon, Palette, MessageSquare, Copy, CheckCircle2, ExternalLink, Image as ImageIcon } from 'lucide-react';
-
+import { SectionHint } from '@/components/ui/section-hint';
+import {
+  Loader2,
+  Store,
+  Link as LinkIcon,
+  Palette,
+  MessageSquare,
+  Copy,
+  CheckCircle2,
+  ExternalLink,
+  Image as ImageIcon,
+  Smartphone,
+  Search,
+  UtensilsCrossed,
+} from 'lucide-react';
 import { toast } from '@/stores/useToastStore';
-
 
 export default function AdminRestaurant() {
   const { restauranteId } = useAuthStore();
@@ -21,7 +33,7 @@ export default function AdminRestaurant() {
     color_principal: '#4f46e5',
     color_fondo: '#f8fafc',
     mensaje_bienvenida: '',
-    logo_url: ''
+    logo_url: '',
   });
 
   useEffect(() => {
@@ -45,59 +57,68 @@ export default function AdminRestaurant() {
           color_principal: data.color_principal || '#4f46e5',
           color_fondo: data.color_fondo || '#f8fafc',
           mensaje_bienvenida: data.mensaje_bienvenida || '¡Bienvenidos a nuestro menú digital!',
-          logo_url: data.logo_url || ''
+          logo_url: data.logo_url || '',
         });
       }
     } catch (error) {
-      console.error('Error al cargar datos del restaurante:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error al cargar datos del restaurante:', error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formattedSlug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+    const formattedSlug = e.target.value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-');
     setFormData({ ...formData, slug: formattedSlug });
   };
 
   const handleGuardar = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsSubmitting(true);
-  try {
-    const { error } = await supabase
-      .from('restaurantes')
-      .update({
-        nombre: formData.nombre,
-        slug: formData.slug || null,
-        color_principal: formData.color_principal,
-        color_fondo: formData.color_fondo,
-        mensaje_bienvenida: formData.mensaje_bienvenida,
-        logo_url: formData.logo_url.trim() || null
-      })
-      .eq('id', restauranteId);
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('restaurantes')
+        .update({
+          nombre: formData.nombre,
+          slug: formData.slug || null,
+          color_principal: formData.color_principal,
+          color_fondo: formData.color_fondo,
+          mensaje_bienvenida: formData.mensaje_bienvenida,
+          logo_url: formData.logo_url.trim() || null,
+        })
+        .eq('id', restauranteId);
 
-    if (error) {
-      if (error.code === '23505') {
-        // 🔄 OLA 2D: mensaje específico para slug duplicado
-        toast.error(
-          'Ese enlace ya está en uso',
-          'Probá con otro slug (ej: "mi-restaurante-2").'
-        );
-        return;
+      if (error) {
+        if (error.code === '23505') {
+          toast.error(
+            'Ese enlace ya está en uso',
+            'Probá con otro slug (ej: "mi-restaurante-2").'
+          );
+          return;
+        }
+        throw error;
       }
-      throw error;
-    }
 
-    toast.success('Configuración guardada', 'Tus cambios ya están visibles en la carta digital.');
-  } catch (error) {
-    console.error('Error al guardar restaurante:', error);
-    toast.error(
-      'No pudimos guardar los cambios',
-      error instanceof Error ? error.message : 'Intentá de nuevo en unos segundos.'
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
+      toast.success(
+        'Configuración guardada',
+        'Tus cambios ya están visibles en la carta digital.'
+      );
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error al guardar restaurante:', error);
+      }
+      toast.error(
+        'No pudimos guardar los cambios',
+        error instanceof Error ? error.message : 'Intentá de nuevo en unos segundos.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const publicUrl = formData.slug ? `${window.location.origin}/m/${formData.slug}` : '';
@@ -119,13 +140,20 @@ export default function AdminRestaurant() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Perfil de Negocio</h2>
-        <p className="text-slate-500 text-sm">Personaliza la identidad y tu Menú Digital.</p>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* CABECERA CON SECTION HINT (UX-01) */}
+      <div className="flex items-center gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Perfil de Negocio</h2>
+            <SectionHint text="Personalizá la identidad, logo y colores de tu Menú Digital en tiempo real. Obtené el enlace único para imprimir tu QR o compartir en redes." />
+          </div>
+          <p className="text-slate-500 text-sm">Personaliza la identidad y tu Menú Digital para tus clientes.</p>
+        </div>
       </div>
 
       <form onSubmit={handleGuardar} className="space-y-6">
+        {/* INFORMACIÓN GENERAL */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -134,83 +162,262 @@ export default function AdminRestaurant() {
           </div>
           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
-              {/* CORRECCIÓN: Se añade text-slate-700 dark:text-slate-300 */}
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Nombre del Restaurante</label>
-              <Input required value={formData.nombre} onChange={(e) => setFormData({...formData, nombre: e.target.value})} className="dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Nombre del Restaurante
+              </label>
+              <Input
+                required
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                placeholder="Ej. La Trattoria"
+              />
             </div>
             <div className="space-y-1.5">
-              {/* CORRECCIÓN: Se añade text-slate-700 dark:text-slate-300 */}
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2"><ImageIcon size={16}/> URL del Logo (Opcional)</label>
-              <Input placeholder="https://..." value={formData.logo_url} onChange={(e) => setFormData({...formData, logo_url: e.target.value})} className="dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <ImageIcon size={16} /> URL del Logo (Opcional)
+              </label>
+              <Input
+                placeholder="https://..."
+                value={formData.logo_url}
+                onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+              />
             </div>
           </div>
         </div>
 
+        {/* PERSONALIZACIÓN DEL MENÚ DIGITAL + LIVE SMARTPHONE PREVIEW (UX-02) */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-between">
             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
               <Palette size={18} className="text-emerald-500" /> Personalización del Menú Digital
             </h3>
+            <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Smartphone size={12} /> Preview en vivo
+            </span>
           </div>
-          
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-5">
+
+          <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* COLUMNA IZQUIERDA: FORMULARIO */}
+            <div className="lg:col-span-6 space-y-5">
               <div className="space-y-1.5">
-                {/* CORRECCIÓN: Se añade text-slate-700 dark:text-slate-300 */}
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2"><LinkIcon size={16}/> Enlace (Slug)</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <LinkIcon size={16} /> Enlace (Slug)
+                </label>
                 <div className="flex shadow-sm rounded-md">
-                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 sm:text-sm">/m/</span>
-                  <Input required placeholder="mi-restaurante" value={formData.slug} onChange={handleSlugChange} className="rounded-none rounded-r-md font-mono dark:bg-slate-900 dark:border-slate-700 dark:text-white" />
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 sm:text-sm font-mono">
+                    /m/
+                  </span>
+                  <Input
+                    required
+                    placeholder="mi-restaurante"
+                    value={formData.slug}
+                    onChange={handleSlugChange}
+                    className="rounded-none rounded-r-md font-mono dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                  />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                {/* CORRECCIÓN: Se añade text-slate-700 dark:text-slate-300 */}
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2"><MessageSquare size={16}/> Mensaje de Bienvenida</label>
-                <Input value={formData.mensaje_bienvenida} onChange={(e) => setFormData({...formData, mensaje_bienvenida: e.target.value})} className="dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <MessageSquare size={16} /> Mensaje de Bienvenida
+                </label>
+                <Input
+                  value={formData.mensaje_bienvenida}
+                  onChange={(e) => setFormData({ ...formData, mensaje_bienvenida: e.target.value })}
+                  className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                  placeholder="¡Bienvenidos a nuestra carta digital!"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  {/* CORRECCIÓN: Se añade text-slate-700 dark:text-slate-300 */}
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Color Marca</label>
-                  <input type="color" value={formData.color_principal} onChange={(e) => setFormData({...formData, color_principal: e.target.value})} className="h-10 w-full rounded border dark:border-slate-700 cursor-pointer" />
+                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
+                    Color Marca (Header)
+                  </label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="color"
+                      value={formData.color_principal}
+                      onChange={(e) => setFormData({ ...formData, color_principal: e.target.value })}
+                      className="h-9 w-12 rounded border cursor-pointer dark:border-slate-700 bg-transparent"
+                    />
+                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                      {formData.color_principal.toUpperCase()}
+                    </span>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  {/* CORRECCIÓN: Se añade text-slate-700 dark:text-slate-300 */}
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Color Fondo</label>
-                  <input type="color" value={formData.color_fondo} onChange={(e) => setFormData({...formData, color_fondo: e.target.value})} className="h-10 w-full rounded border dark:border-slate-700 cursor-pointer" />
+
+                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
+                    Color Fondo
+                  </label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="color"
+                      value={formData.color_fondo}
+                      onChange={(e) => setFormData({ ...formData, color_fondo: e.target.value })}
+                      className="h-9 w-12 rounded border cursor-pointer dark:border-slate-700 bg-transparent"
+                    />
+                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                      {formData.color_fondo.toUpperCase()}
+                    </span>
+                  </div>
                 </div>
+              </div>
+
+              {/* ENLACE Y BOTONES DE COMPARTIR */}
+              <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Tu Menú en Línea
+                  </span>
+                  {publicUrl && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Activo
+                    </span>
+                  )}
+                </div>
+
+                {publicUrl ? (
+                  <div className="space-y-2">
+                    <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-indigo-600 dark:text-indigo-400 break-all select-all">
+                      {publicUrl}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={copyToClipboard}
+                        className="w-1/2 flex items-center justify-center gap-2 dark:border-slate-700 dark:text-slate-300 text-xs"
+                      >
+                        {copied ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                        {copied ? '¡Copiado!' : 'Copiar URL'}
+                      </Button>
+                      <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="w-1/2">
+                        <Button type="button" className="w-full bg-slate-900 dark:bg-indigo-600 text-white text-xs flex items-center justify-center gap-1.5">
+                          Ver Carta <ExternalLink size={14} />
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-lg">
+                    ⚠️ Ingresa un Enlace (Slug) para generar tu URL.
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
-              <ExternalLink size={32} className="mx-auto text-indigo-500" />
-              <div>
-                <h4 className="font-bold text-slate-800 dark:text-white">Tu Menú en Línea</h4>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Comparte este enlace con tus clientes.</p>
+            {/* COLUMNA DERECHA: LIVE SMARTPHONE MOCKUP (UX-02) */}
+            <div className="lg:col-span-6 flex flex-col items-center justify-center">
+              <div className="text-center mb-2">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                  <Smartphone size={14} /> Vista Previa en Móvil
+                </span>
+                <p className="text-[11px] text-slate-400">Renderizado en tiempo real</p>
               </div>
-              {publicUrl ? (
-                <div className="w-full">
-                  <div className="bg-white dark:bg-slate-900 p-3 rounded border border-slate-200 dark:border-slate-700 mb-3 font-mono text-sm text-indigo-600 dark:text-indigo-400 break-all select-all">{publicUrl}</div>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={copyToClipboard} className="w-1/2 flex items-center gap-2 dark:border-slate-700 dark:text-slate-300">
-                      {copied ? <CheckCircle2 size={16} className="text-emerald-500"/> : <Copy size={16}/>} Copiar
-                    </Button>
-                    <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="w-1/2">
-                      <Button type="button" className="w-full bg-slate-900 dark:bg-indigo-600 text-white">Ver Menú <ExternalLink size={16} className="ml-2"/></Button>
-                    </a>
+
+              {/* Smartphone Frame */}
+              <div className="w-[280px] sm:w-[310px] h-[480px] rounded-[38px] p-2.5 bg-slate-900 border-4 border-slate-700 dark:border-slate-800 shadow-2xl relative flex flex-col overflow-hidden select-none">
+                {/* Dynamic Notch */}
+                <div className="absolute top-3.5 left-1/2 -translate-x-1/2 w-24 h-4 bg-black rounded-full z-30 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-slate-800 mr-2"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-900/50"></div>
+                </div>
+
+                {/* Inner Screen */}
+                <div
+                  className="w-full h-full rounded-[28px] overflow-y-auto overflow-x-hidden flex flex-col transition-colors duration-300 relative text-left"
+                  style={{ backgroundColor: formData.color_fondo }}
+                >
+                  {/* Smartphone Header with dynamic color */}
+                  <div
+                    className="pt-8 pb-5 px-3 text-center text-white relative shadow-sm transition-colors duration-300"
+                    style={{ backgroundColor: formData.color_principal }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center">
+                      {formData.logo_url ? (
+                        <div className="w-12 h-12 rounded-full border-2 border-white shadow-md overflow-hidden mb-2 bg-white">
+                          <img
+                            src={formData.logo_url}
+                            alt="Logo"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                      <h4 className="text-base font-black leading-tight tracking-tight drop-shadow-sm">
+                        {formData.nombre.trim() || 'Nombre de tu Local'}
+                      </h4>
+                      <p className="text-[10px] text-white/90 font-medium mt-0.5 line-clamp-2 leading-tight max-w-[200px]">
+                        {formData.mensaje_bienvenida.trim() || '¡Bienvenidos a nuestra carta digital!'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Sample Search bar */}
+                  <div className="px-3 -mt-2.5 relative z-20">
+                    <div className="bg-white rounded-lg shadow-sm border border-slate-200/80 p-1.5 flex items-center gap-1.5">
+                      <Search size={12} className="text-slate-400 ml-1" />
+                      <span className="text-[10px] text-slate-400">Buscar en la carta...</span>
+                    </div>
+                  </div>
+
+                  {/* Sample Menu Items */}
+                  <div className="p-3 space-y-3 flex-1 text-slate-800">
+                    <div>
+                      <h5
+                        className="text-[10px] font-black uppercase tracking-wider mb-1.5"
+                        style={{ color: formData.color_principal }}
+                      >
+                        DESTACADOS
+                      </h5>
+                      <div className="space-y-1.5">
+                        <div className="bg-white p-2 rounded-xl shadow-xs border border-slate-100 flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs text-slate-800 truncate">Plato Especial</p>
+                            <p className="text-[9px] text-slate-500 line-clamp-1">Ingredientes frescos y receta casera.</p>
+                            <span className="text-xs font-black text-slate-900 mt-0.5 block">$ 6.500</span>
+                          </div>
+                          <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-300">
+                            <UtensilsCrossed size={16} />
+                          </div>
+                        </div>
+
+                        <div className="bg-white p-2 rounded-xl shadow-xs border border-slate-100 flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs text-slate-800 truncate">Bebida Artesanal</p>
+                            <p className="text-[9px] text-slate-500 line-clamp-1">500ml con opción sin alcohol.</p>
+                            <span className="text-xs font-black text-slate-900 mt-0.5 block">$ 2.800</span>
+                          </div>
+                          <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-300">
+                            <UtensilsCrossed size={16} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="py-2 text-center text-[9px] text-slate-400 border-t border-slate-200/50 bg-white/40 mt-auto">
+                    Cocin<span className="font-bold text-indigo-500">App</span> Menú
                   </div>
                 </div>
-              ) : (
-                <div className="text-sm text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg">⚠️ Ingresa un Enlace (Slug) para generar tu URL.</div>
-              )}
+              </div>
             </div>
           </div>
         </div>
 
+        {/* BOTÓN GUARDAR */}
         <div className="flex justify-end">
-          <Button type="submit" disabled={isSubmitting} className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg border-0">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg border-0 font-bold"
+          >
             {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : null} Guardar Configuración
           </Button>
         </div>

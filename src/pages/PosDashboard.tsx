@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { toast } from '@/stores/useToastStore';
+import { SectionHint } from '@/components/ui/section-hint';
 
 interface Product {
   id: string;
@@ -277,6 +278,8 @@ export default function PosDashboard() {
               <ArrowLeft size={20} />
             </Button>
           </Link>
+
+          <SectionHint text="Cargá pedidos rápidos en mesa o mostrador. Podés aplicar descuentos, dividir la cuenta entre varias personas y cerrar la comanda en 1 clic." />
 
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" size={18} />

@@ -1,12 +1,23 @@
-// src/components/ProtectedRoute.tsx
+// src/components/Layouts/ProtectedRoute.tsx
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Loader2 } from 'lucide-react';
 
-export default function ProtectedRoute() {
-  const { user, setAuth, clearAuth } = useAuthStore();
+// Mapa de redirección por defecto según el rol del usuario
+const ROLE_FALLBACK: Record<string, string> = {
+  pos: '/pos',
+  admin: '/admin/dashboard',
+};
+
+interface ProtectedRouteProps {
+  /** Si se omite, cualquier usuario autenticado puede acceder. */
+  allowedRoles?: string[];
+}
+
+export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+  const { user, rol, setAuth, clearAuth } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -17,7 +28,7 @@ export default function ProtectedRoute() {
     try {
       // 1. Verificamos si existe una sesión activa almacenada por Supabase en el navegador
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError) throw sessionError;
 
       if (!session) {
@@ -26,14 +37,14 @@ export default function ProtectedRoute() {
         return;
       }
 
-      // 2. Si hay sesión en Supabase pero React la olvidó (Ej: el usuario apretó F5), 
-      // la recuperamos de la tabla correcta: 'usuarios'
+      // 2. Si hay sesión en Supabase pero React la olvidó (Ej: el usuario apretó F5),
+      // la recuperamos de la tabla 'usuarios'
       if (!user) {
         const { data: userData, error: userError } = await supabase
-          .from('usuarios') // ¡CORREGIDO! Antes buscaba en 'perfiles_usuario'
+          .from('usuarios')
           .select('restaurante_id, rol')
           .eq('id', session.user.id)
-          .single(); // Exigimos que devuelva 1 sola fila
+          .single();
 
         if (userError) throw userError;
 
@@ -41,7 +52,10 @@ export default function ProtectedRoute() {
         setAuth(session.user, userData.restaurante_id, userData.rol);
       }
     } catch (error) {
-      console.error('Error de sesión en ProtectedRoute:', error);
+      // Solo emitimos trazas en desarrollo para no exponer info en producción
+      if (import.meta.env.DEV) {
+        console.error('[ProtectedRoute] Error de sesión:', error);
+      }
       clearAuth(); // Si algo falla, por seguridad borramos la memoria
     } finally {
       // Terminamos de cargar, pase lo que pase
@@ -59,11 +73,22 @@ export default function ProtectedRoute() {
     );
   }
 
-  // Si después del chequeo no hay usuario validado, lo expulsamos al Login
+  // Si después del chequeo no hay usuario validado, lo redirigimos al Login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Si todo está en orden, le permitimos ver el panel administrativo (hijos del Router)
+  // --- RBAC: Control de acceso basado en rol ---
+  // Si la ruta define roles permitidos y el rol del usuario no está entre ellos,
+  // redirigimos al destino correcto para su rol (no al login — ya está autenticado).
+  if (allowedRoles && allowedRoles.length > 0 && rol) {
+    const isAllowed = allowedRoles.includes(rol);
+    if (!isAllowed) {
+      const fallback = ROLE_FALLBACK[rol] ?? '/login';
+      return <Navigate to={fallback} replace />;
+    }
+  }
+
+  // Si todo está en orden, renderizamos las rutas hijas
   return <Outlet />;
 }

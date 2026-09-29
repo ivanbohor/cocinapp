@@ -1,5 +1,6 @@
 // src/stores/usePosStore.ts
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface OrderItem {
   id: string;
@@ -21,50 +22,64 @@ interface PosState {
   setOrderFromTable: (tableId: string, tableName: string, items: OrderItem[]) => void;
 }
 
-export const usePosStore = create<PosState>((set, get) => ({
-  orderItems: [],
-  currentTableId: null,
-  tableName: null,
+export const usePosStore = create<PosState>()(
+  persist(
+    (set, get) => ({
+      orderItems: [],
+      currentTableId: null,
+      tableName: null,
 
-  setOrderFromTable: (tableId, tableName, items) => set({
-    currentTableId: tableId,
-    tableName: tableName,
-    orderItems: items
-  }),
+      setOrderFromTable: (tableId, tableName, items) => set({
+        currentTableId: tableId,
+        tableName: tableName,
+        orderItems: items
+      }),
 
-  addItem: (newItem) => set((state) => {
-    const existingItem = state.orderItems.find(item => item.productId === newItem.productId);
-    if (existingItem) {
-      return {
-        orderItems: state.orderItems.map(item => 
-          item.productId === newItem.productId 
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      };
+      addItem: (newItem) => set((state) => {
+        const existingItem = state.orderItems.find(item => item.productId === newItem.productId);
+        if (existingItem) {
+          return {
+            orderItems: state.orderItems.map(item =>
+              item.productId === newItem.productId
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            )
+          };
+        }
+        return { orderItems: [...state.orderItems, { ...newItem, quantity: 1 }] };
+      }),
+
+      decreaseItem: (productId) => set((state) => {
+        const existingItem = state.orderItems.find(item => item.productId === productId);
+        if (existingItem && existingItem.quantity > 1) {
+          return {
+            orderItems: state.orderItems.map(item =>
+              item.productId === productId ? { ...item, quantity: item.quantity - 1 } : item
+            )
+          };
+        }
+        return { orderItems: state.orderItems.filter(item => item.productId !== productId) };
+      }),
+
+      removeItem: (itemId) => set((state) => ({
+        orderItems: state.orderItems.filter(item => item.id !== itemId)
+      })),
+
+      clearOrder: () => set({ orderItems: [], currentTableId: null, tableName: null }),
+
+      getTotal: () => {
+        return get().orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+      }
+    }),
+    {
+      name: 'cocinapp-pos-session', // clave en sessionStorage
+      storage: createJSONStorage(() => sessionStorage),
+      // Solo persistimos el estado de datos — las funciones se reconstruyen en cada montaje
+      partialize: (state) => ({
+        orderItems:     state.orderItems,
+        currentTableId: state.currentTableId,
+        tableName:      state.tableName,
+      }),
     }
-    return { orderItems: [...state.orderItems, { ...newItem, quantity: 1 }] };
-  }),
-
-  decreaseItem: (productId) => set((state) => {
-    const existingItem = state.orderItems.find(item => item.productId === productId);
-    if (existingItem && existingItem.quantity > 1) {
-      return {
-        orderItems: state.orderItems.map(item =>
-          item.productId === productId ? { ...item, quantity: item.quantity - 1 } : item
-        )
-      };
-    }
-    return { orderItems: state.orderItems.filter(item => item.productId !== productId) };
-  }),
-
-  removeItem: (itemId) => set((state) => ({
-    orderItems: state.orderItems.filter(item => item.id !== itemId)
-  })),
-
-  clearOrder: () => set({ orderItems: [], currentTableId: null, tableName: null }),
-
-  getTotal: () => {
-    return get().orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  }
-}));
+  )
+);

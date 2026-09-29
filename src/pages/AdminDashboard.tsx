@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { 
   LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
+import { SectionHint } from '@/components/ui/section-hint';
 
 // Paleta de colores para el gráfico de Torta
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -50,45 +51,47 @@ export default function AdminDashboard() {
       const [year, month] = selectedMonth.split('-');
       const startDate = new Date(Number(year), Number(month) - 1, 1).toISOString();
       const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59).toISOString();
+      const hoyISO = new Date().toISOString().split('T')[0];
 
-      // 2. Traer Ventas (Pagadas) con sus ítems
-      const { data: ventas, error: errorVentas } = await supabase
-        .from('ventas')
-        .select('*, venta_items(*)')
-        .eq('restaurante_id', restauranteId)
-        .eq('status', 'Pagado')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
+      // 2. Las 4 queries se lanzan en paralelo — eliminando la cadena secuencial
+      const [
+        { data: ventas,  error: errorVentas  },
+        { data: gastos,  error: errorGastos  },
+        { data: catalog               },
+        { data: insumos               },
+      ] = await Promise.all([
+        supabase
+          .from('ventas')
+          .select('*, venta_items(*)')
+          .eq('restaurante_id', restauranteId)
+          .eq('status', 'Pagado')
+          .gte('created_at', startDate)
+          .lte('created_at', endDate),
+
+        supabase
+          .from('gastos')
+          .select('*')
+          .eq('restaurante_id', restauranteId)
+          .gte('fecha', startDate)
+          .lte('fecha', endDate),
+
+        supabase
+          .from('productos')
+          .select('id, category')
+          .eq('restaurante_id', restauranteId),
+
+        supabase
+          .from('insumos')
+          .select('*')
+          .eq('restaurante_id', restauranteId)
+          .not('fecha_alarma', 'is', null)
+          .lte('fecha_alarma', hoyISO),
+      ]);
 
       if (errorVentas) throw errorVentas;
-
-      // 3. Traer Gastos
-      const { data: gastos, error: errorGastos } = await supabase
-        .from('gastos')
-        .select('*')
-        .eq('restaurante_id', restauranteId)
-        .gte('fecha', startDate)
-        .lte('fecha', endDate);
-
       if (errorGastos) throw errorGastos;
 
-      // 4. Traer Productos (para cruzar las categorías del gráfico de torta)
-      const { data: catalog } = await supabase
-        .from('productos')
-        .select('id, category')
-        .eq('restaurante_id', restauranteId);
-
       const catalogMap = new Map((catalog || []).map(p => [p.id, p.category]));
-
-      // 5. Traer Alertas Urgentes de Stock
-      const hoyISO = new Date().toISOString().split('T')[0];
-      const { data: insumos } = await supabase
-        .from('insumos')
-        .select('*')
-        .eq('restaurante_id', restauranteId)
-        .not('fecha_alarma', 'is', null)
-        .lte('fecha_alarma', hoyISO);
-
       setUrgentAlerts(insumos || []);
 
       // ==========================================
@@ -178,7 +181,10 @@ export default function AdminDashboard() {
       {/* CABECERA Y FILTRO DE MES */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Resumen Financiero</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Resumen Financiero</h2>
+            <SectionHint text="Visualizá ingresos, egresos y beneficio neto por mes. Detectá tus 5 productos más vendidos y evaluá alertas de reposición inmediata." />
+          </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm">Visualiza el rendimiento de tu negocio.</p>
         </div>
         <div className="flex items-center gap-2">

@@ -6,6 +6,7 @@ import { toast } from '@/stores/useToastStore';
 import { confirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SectionHint } from '@/components/ui/section-hint';
 import {
   Loader2,
   Plus,
@@ -388,7 +389,10 @@ export default function AdminProducts() {
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-ink-900 dark:text-white">Menú y Productos</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-ink-900 dark:text-white">Menú y Productos</h2>
+            <SectionHint text="Creá platos, modificá precios, subí fotos y organizá categorías. Los cambios se actualizan automáticamente en el Menú QR de tus comensales." />
+          </div>
           <p className="text-ink-500 dark:text-ink-400 text-sm">Gestiona los platos de tu carta.</p>
         </div>
 
