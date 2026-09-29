@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SectionHint } from '@/components/ui/section-hint';
 import { Loader2, Plus, Search, Edit, Trash2, Bell, X, Package } from 'lucide-react';
 
 import { toast } from '@/stores/useToastStore';
@@ -255,7 +256,10 @@ const clearAlarm = async () => {
       {/* CABECERA */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Stock y Alertas</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Stock y Alertas</h2>
+            <SectionHint text="Registrá stock crítico (queso, carne, pan) y fijá fechas límites de reposición. Recibirás avisos visuales automáticos antes de quedarte sin stock." />
+          </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm">Gestiona tu inventario físico y programa avisos de reposición.</p>
         </div>
         <Button onClick={() => openItemModal()} className="bg-slate-900 dark:bg-indigo-600 text-white w-full sm:w-auto">

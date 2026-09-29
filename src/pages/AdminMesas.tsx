@@ -6,6 +6,7 @@ import { usePosStore } from '@/stores/usePosStore';
 import { Loader2, Coffee, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
+import { SectionHint } from '@/components/ui/section-hint';
 
 interface VentaItem {
   id: string;
@@ -83,7 +84,10 @@ export default function AdminMesas() {
   return (
     <div className="space-y-6 transition-colors duration-300">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Gestión de Mesas</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Gestión de Mesas</h2>
+          <SectionHint text="Monitoreá qué mesas están ocupadas con comanda abierta y cuáles libres. Hacé clic en una mesa para cobrarla o editarla en el POS." />
+        </div>
         <p className="text-slate-500 dark:text-slate-400 text-sm">Visualiza y administra las cuentas que están actualmente abiertas.</p>
       </div>
 

@@ -6,6 +6,7 @@ import { toast } from '@/stores/useToastStore';
 import { confirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SectionHint } from '@/components/ui/section-hint';
 import {
   Loader2,
   Plus,
@@ -19,9 +20,10 @@ import {
   Upload,
   Download,
   CheckSquare,
-  Square
+  Square,
+  Sparkles,   // ← NUEVO (sugerencias)
 } from 'lucide-react';
-
+import { HelpPopover } from '@/components/ui/help-popover';
 interface Producto {
   id: string;
   name: string;
@@ -30,6 +32,7 @@ interface Producto {
   category: string;
   status: string;
   image_url: string | null;
+  es_sugerencia: boolean;   // ← NUEVO (sugerencias)
 }
 
 export default function AdminProducts() {
@@ -55,7 +58,8 @@ export default function AdminProducts() {
     price: '',
     category: 'Platos Principales',
     status: 'Activo',
-    image_url: ''
+    image_url: '',
+    es_sugerencia: false,   // ← NUEVO (sugerencias)
   });
 
   useEffect(() => {
@@ -99,7 +103,8 @@ export default function AdminProducts() {
         price: parseFloat(formData.price),
         category: formData.category,
         status: formData.status,
-        image_url: formData.image_url.trim() || null
+        image_url: formData.image_url.trim() || null,
+        es_sugerencia: formData.es_sugerencia,   // ← NUEVO (sugerencias)
       };
 
       if (activeId) {
@@ -135,7 +140,6 @@ export default function AdminProducts() {
     });
     if (!ok) return;
 
-    // 🔄 OLA 2B: Optimistic delete — sacamos de la lista antes de esperar respuesta
     const backup = productos;
     setProductos(productos.filter(p => p.id !== id));
     setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
@@ -146,13 +150,13 @@ export default function AdminProducts() {
       toast.success('Producto eliminado');
     } catch (error) {
       console.error('Error al eliminar:', error);
-      setProductos(backup); // Revertimos si falla
+      setProductos(backup);
       toast.error('No pudimos eliminar el producto', 'Intentá de nuevo en unos segundos.');
     }
   };
 
   // ===============================================
-  // SELECCIÓN MÚLTIPLE Y ELIMINACIÓN EN LOTE
+  // SELECCIÓN MÚLTIPLE
   // ===============================================
   const filtered = productos.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -187,7 +191,6 @@ export default function AdminProducts() {
     const backup = productos;
     const backupSelected = selectedIds;
 
-    // Optimistic
     setProductos(productos.filter(p => !selectedIds.includes(p.id)));
     setSelectedIds([]);
 
@@ -211,35 +214,68 @@ export default function AdminProducts() {
   // EXPORTACIÓN CSV
   // ===============================================
   const handleExportCSV = () => {
-    if (productos.length === 0) {
-      toast.warning('No hay productos para exportar', 'Cargá al menos un producto antes de descargar.');
-      return;
+    const headers = ['Nombre', 'Descripcion', 'Precio', 'Categoria', 'ImagenURL'];
+
+    let rows: (string | number)[][];
+    let esPlantillaVacia = false;
+
+    if (filtered.length === 0) {
+      // ✅ Plantilla vacía con fila de ejemplo para que el usuario entienda el formato
+      esPlantillaVacia = true;
+      rows = [
+        [
+          'Milanesa con papas',
+          'Milanesa de carne con guarnición de papas fritas',
+          12000,
+          'Platos Principales',
+          'https://ejemplo.com/milanesa.jpg',
+        ],
+        [
+          'Coca-Cola 500ml',
+          '',
+          3500,
+          'Bebidas',
+          '',
+        ],
+      ];
+    } else {
+      rows = filtered.map((p) => [
+        `"${p.name.replace(/"/g, '""')}"`,
+        `"${(p.description || '').replace(/"/g, '""')}"`,
+        p.price,
+        `"${p.category.replace(/"/g, '""')}"`,
+        `"${(p.image_url || '').replace(/"/g, '""')}"`,
+      ]);
     }
 
-    const headers = ['Nombre', 'Descripcion', 'Precio', 'Categoria', 'ImagenURL'];
-    const rows = filtered.map(p => [
-      `"${p.name.replace(/"/g, '""')}"`,
-      `"${(p.description || '').replace(/"/g, '""')}"`,
-      p.price,
-      `"${p.category.replace(/"/g, '""')}"`,
-      `"${(p.image_url || '').replace(/"/g, '""')}"`
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `menu_cocinapp_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute(
+      'download',
+      esPlantillaVacia
+        ? `plantilla_menu_cocinapp.csv`
+        : `menu_cocinapp_${new Date().toISOString().slice(0, 10)}.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
-    toast.success(
-      `${filtered.length} producto${filtered.length > 1 ? 's' : ''} exportado${filtered.length > 1 ? 's' : ''}`,
-      'Revisá tu carpeta de descargas.'
-    );
+    if (esPlantillaVacia) {
+      toast.info(
+        'Plantilla descargada',
+        'Completala en Excel y luego usá "Importar CSV" para subir tu menú.'
+      );
+    } else {
+      toast.success(
+        `${filtered.length} producto${filtered.length > 1 ? 's' : ''} exportado${filtered.length > 1 ? 's' : ''}`,
+        'Revisá tu carpeta de descargas.'
+      );
+    }
   };
 
   // ===============================================
@@ -268,16 +304,14 @@ export default function AdminProducts() {
 
       const separator = lines[0].includes(';') ? ';' : ',';
 
-      // 🔄 OLA 2B: Trackeamos filas rechazadas para informar al usuario
       const rechazados: number[] = [];
       const nuevosProductos = lines.slice(1).map((line, idx) => {
         const cols = line.split(separator).map(c => c.trim().replace(/^"|"$/g, ''));
         const name = cols[0];
         const price = parseFloat(cols[2]);
 
-        // Validación mínima: nombre y precio numérico válido
         if (!name || isNaN(price)) {
-          rechazados.push(idx + 2); // +2 por el header y el 0-index
+          rechazados.push(idx + 2);
           return null;
         }
 
@@ -305,7 +339,6 @@ export default function AdminProducts() {
 
       if (data) setProductos(prev => [...prev, ...data]);
 
-      // 🔄 OLA 2B: Toast con resumen
       if (rechazados.length > 0) {
         toast.warning(
           `${data?.length ?? 0} productos importados`,
@@ -375,6 +408,37 @@ export default function AdminProducts() {
     }
   };
 
+  // ===============================================
+  // HELPERS: Abrir modal en modo "nuevo" o "editar"
+  // ===============================================
+  const abrirModalNuevo = () => {
+    setActiveId(null);
+    setFormData({
+      name: '',
+      description: '',
+      price: '',
+      category: 'Platos Principales',
+      status: 'Activo',
+      image_url: '',
+      es_sugerencia: false,   // ← NUEVO (sugerencias)
+    });
+    setIsModalOpen(true);
+  };
+
+  const abrirModalEditar = (prod: Producto) => {
+    setActiveId(prod.id);
+    setFormData({
+      name: prod.name,
+      description: prod.description || '',
+      price: prod.price.toString(),
+      category: prod.category,
+      status: prod.status,
+      image_url: prod.image_url || '',
+      es_sugerencia: prod.es_sugerencia ?? false,   // ← NUEVO (sugerencias)
+    });
+    setIsModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-ink-500 dark:text-ink-400">
@@ -388,11 +452,14 @@ export default function AdminProducts() {
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-ink-900 dark:text-white">Menú y Productos</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-ink-900 dark:text-white">Menú y Productos</h2>
+            <SectionHint text="Creá platos, modificá precios, subí fotos y organizá categorías. Los cambios se actualizan automáticamente en el Menú QR de tus comensales." />
+          </div>
           <p className="text-ink-500 dark:text-ink-400 text-sm">Gestiona los platos de tu carta.</p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="file"
             accept=".csv"
@@ -401,14 +468,79 @@ export default function AdminProducts() {
             className="hidden"
           />
 
-          <Button
-            variant="outline"
-            onClick={handleExportCSV}
-            className="bg-white dark:bg-ink-800 text-ink-700 dark:text-ink-100 border-ink-200 dark:border-ink-700"
-          >
-            <Download size={18} className="mr-2" />
-            Descargar CSV
-          </Button>
+          
+            <HelpPopover ariaLabel="Cómo cargar tu menú con Excel">
+              <h3 className="text-sm font-bold text-ink-900 dark:text-ink-100 mb-3 flex items-center gap-2">
+                <Sparkles size={14} className="text-brand-500" />
+                Cargá tu menú en 3 pasos
+              </h3>
+
+              <ol className="space-y-3 text-xs">
+                <li className="flex gap-2.5">
+                  <span className="shrink-0 grid h-5 w-5 place-items-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 font-bold text-[10px]">
+                    1
+                  </span>
+                  <div>
+                    <p className="font-semibold text-ink-800 dark:text-ink-200">
+                      Descargá la plantilla
+                    </p>
+                    <p className="text-ink-600 dark:text-ink-400 mt-0.5 leading-relaxed">
+                      Hacé click en "Descargar CSV". Si todavía no tenés productos,
+                      obtenés una plantilla vacía con ejemplos para completar.
+                    </p>
+                  </div>
+                </li>
+
+                <li className="flex gap-2.5">
+                  <span className="shrink-0 grid h-5 w-5 place-items-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 font-bold text-[10px]">
+                    2
+                  </span>
+                  <div>
+                    <p className="font-semibold text-ink-800 dark:text-ink-200">
+                      Editala en Excel
+                    </p>
+                    <p className="text-ink-600 dark:text-ink-400 mt-0.5 leading-relaxed">
+                      Agregá tus platos respetando las columnas. No cambies los encabezados.
+                      Guardá el archivo como <span className="font-mono text-[10px]">.csv</span>.
+                    </p>
+                  </div>
+                </li>
+
+                <li className="flex gap-2.5">
+                  <span className="shrink-0 grid h-5 w-5 place-items-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 font-bold text-[10px]">
+                    3
+                  </span>
+                  <div>
+                    <p className="font-semibold text-ink-800 dark:text-ink-200">
+                      Importá el archivo
+                    </p>
+                    <p className="text-ink-600 dark:text-ink-400 mt-0.5 leading-relaxed">
+                      Usá "Importar CSV" para subirlo. Los platos válidos se agregan
+                      automáticamente a tu carta.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+
+              <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+                <p className="text-[11px] text-ink-500 dark:text-ink-400 leading-relaxed">
+                  <span className="font-semibold text-ink-700 dark:text-ink-300">
+                    Columnas:
+                  </span>{' '}
+                  Nombre, Descripción, Precio, Categoría, ImagenURL
+                </p>
+              </div>
+            </HelpPopover>
+
+            <Button
+              variant="outline"
+              onClick={handleExportCSV}
+              className="bg-white dark:bg-ink-800 text-ink-700 dark:text-ink-100 border-ink-200 dark:border-ink-700"
+            >
+              <Download size={18} className="mr-2" />
+              Descargar CSV
+            </Button>
+          
 
           <Button
             variant="outline"
@@ -427,13 +559,8 @@ export default function AdminProducts() {
             <ListOrdered size={18} className="mr-2" /> Organizar Carta
           </Button>
 
-          <Button
-            onClick={() => {
-              setActiveId(null);
-              setFormData({ name: '', description: '', price: '', category: 'Platos Principales', status: 'Activo', image_url: '' });
-              setIsModalOpen(true);
-            }}
-          >
+          {/* ✅ CORREGIDO: se usa el helper abrirModalNuevo */}
+          <Button onClick={abrirModalNuevo}>
             <Plus size={18} className="mr-2" /> Nuevo
           </Button>
         </div>
@@ -466,82 +593,97 @@ export default function AdminProducts() {
         />
       </div>
 
+           {/* ← FIX responsive: contenedor con scroll horizontal */}
       <div className="bg-white dark:bg-ink-900 rounded-card border border-ink-200 dark:border-ink-800 shadow-card overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-ink-50 dark:bg-ink-950/50 text-ink-700 dark:text-ink-300 border-b border-ink-200 dark:border-ink-800">
-            <tr>
-              <th className="px-4 py-4 w-10 text-center">
-                <button onClick={toggleSelectAll} className="text-ink-500 dark:text-ink-400 hover:text-ink-800 dark:hover:text-white">
-                  {filtered.length > 0 && selectedIds.length === filtered.length ? (
-                    <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
-                  ) : (
-                    <Square size={18} />
-                  )}
-                </button>
-              </th>
-              <th className="px-6 py-4">Producto</th>
-              <th className="px-6 py-4">Categoría</th>
-              <th className="px-6 py-4">Precio</th>
-              <th className="px-6 py-4 text-center">Estado</th>
-              <th className="px-6 py-4 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
-            {filtered.map((prod) => {
-              const isSelected = selectedIds.includes(prod.id);
-              return (
-                <tr key={prod.id} className={`hover:bg-ink-50 dark:hover:bg-ink-800/50 ${isSelected ? 'bg-brand-50/50 dark:bg-brand-950/20' : ''}`}>
-                  <td className="px-4 py-4 text-center">
-                    <button onClick={() => toggleSelectOne(prod.id)} className="text-ink-400 hover:text-ink-700 dark:hover:text-white">
-                      {isSelected ? (
-                        <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
-                      ) : (
-                        <Square size={18} />
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-ink-50 dark:bg-ink-950/50 text-ink-700 dark:text-ink-300 border-b border-ink-200 dark:border-ink-800">
+              <tr>
+                <th className="px-4 py-4 w-10 text-center">
+                  <button onClick={toggleSelectAll} className="text-ink-500 dark:text-ink-400 hover:text-ink-800 dark:hover:text-white">
+                    {filtered.length > 0 && selectedIds.length === filtered.length ? (
+                      <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
+                    ) : (
+                      <Square size={18} />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-4">Producto</th>
+                <th className="px-6 py-4">Categoría</th>
+                <th className="px-6 py-4">Precio</th>
+                <th className="px-6 py-4 text-center">Estado</th>
+                <th className="px-6 py-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
+              {filtered.map((prod) => {
+                const isSelected = selectedIds.includes(prod.id);
+                return (
+                  <tr key={prod.id} className={`hover:bg-ink-50 dark:hover:bg-ink-800/50 ${isSelected ? 'bg-brand-50/50 dark:bg-brand-950/20' : ''}`}>
+                    <td className="px-4 py-4 text-center">
+                      <button onClick={() => toggleSelectOne(prod.id)} className="text-ink-400 hover:text-ink-700 dark:hover:text-white">
+                        {isSelected ? (
+                          <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
+                        ) : (
+                          <Square size={18} />
+                        )}
+                      </button>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold dark:text-white">{prod.name}</p>
+                        {prod.es_sugerencia && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider"
+                            title="Sugerencia del Chef"
+                          >
+                            <Sparkles size={10} /> Sugerencia
+                          </span>
+                        )}
+                      </div>
+                      {prod.description && (
+                        <p className="text-xs text-ink-500 dark:text-ink-400 truncate max-w-xs">
+                          {prod.description}
+                        </p>
                       )}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-bold dark:text-white">{prod.name}</p>
-                    {prod.description && <p className="text-xs text-ink-500 dark:text-ink-400 truncate max-w-xs">{prod.description}</p>}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="bg-ink-100 dark:bg-ink-800 text-ink-700 dark:text-ink-300 px-2.5 py-1 rounded-md text-xs font-medium border border-transparent dark:border-ink-700">
-                      {prod.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-black dark:text-white">${prod.price.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${prod.status === 'Activo' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-400'}`}>
-                      {prod.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setActiveId(prod.id);
-                        setFormData({ name: prod.name, description: prod.description || '', price: prod.price.toString(), category: prod.category, status: prod.status, image_url: prod.image_url || '' });
-                        setIsModalOpen(true);
-                      }}
-                      className="text-ink-400 hover:text-brand-500"
-                    >
-                      <Edit size={18} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(prod.id)}
-                      className="text-ink-400 hover:text-red-500"
-                    >
-                      <Trash2 size={18} />
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="bg-ink-100 dark:bg-ink-800 text-ink-700 dark:text-ink-300 px-2.5 py-1 rounded-md text-xs font-medium border border-transparent dark:border-ink-700">
+                        {prod.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-black dark:text-white">${prod.price.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${prod.status === 'Activo' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-400'}`}>
+                        {prod.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => abrirModalEditar(prod)}
+                        className="text-ink-400 hover:text-brand-500"
+                      >
+                        <Edit size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(prod.id)}
+                        className="text-ink-400 hover:text-red-500"
+                      >
+                        <Trash2 size={18} />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* MODAL ORDENAR CATEGORÍAS */}
@@ -580,14 +722,91 @@ export default function AdminProducts() {
               <button onClick={() => setIsModalOpen(false)} className="text-ink-400"><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="p-5 space-y-4">
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Nombre</label><Input required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Descripción (Opcional)</label><textarea rows={2} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="flex w-full rounded-field border border-ink-200 bg-transparent px-3 py-2 text-sm outline-none resize-none dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Precio ($)</label><Input required type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-                <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Estado</label><select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="flex h-10 w-full rounded-field border border-ink-200 bg-transparent px-3 text-sm outline-none dark:bg-ink-800 dark:text-white dark:border-ink-700"><option value="Activo">Activo</option><option value="Pausado">Pausado</option></select></div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">Nombre</label>
+                <Input
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
               </div>
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">Categoría</label><Input required value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
-              <div className="space-y-1.5"><label className="text-sm font-medium dark:text-ink-300">URL Imagen (Opcional)</label><Input value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="dark:bg-ink-800 dark:text-white dark:border-ink-700" /></div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">Descripción (Opcional)</label>
+                <textarea
+                  rows={2}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="flex w-full rounded-field border border-ink-200 bg-transparent px-3 py-2 text-sm outline-none resize-none dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium dark:text-ink-300">Precio ($)</label>
+                  <Input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium dark:text-ink-300">Estado</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="flex h-11 w-full rounded-field border border-ink-200 bg-transparent px-3 text-sm outline-none dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                  >
+                    <option value="Activo">Activo</option>
+                    <option value="Pausado">Pausado</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* ✅ NUEVO: Toggle es_sugerencia */}
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.es_sugerencia}
+                  onChange={(e) => setFormData({ ...formData, es_sugerencia: e.target.checked })}
+                  className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-600 dark:text-amber-400" />
+                    <span className="text-sm font-semibold text-slate-800 dark:text-white">
+                      Marcar como Sugerencia del Chef
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                    Se destacará al inicio de tu carta digital.
+                  </p>
+                </div>
+              </label>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">Categoría</label>
+                <Input
+                  required
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium dark:text-ink-300">URL Imagen (Opcional)</label>
+                <Input
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  className="dark:bg-ink-800 dark:text-white dark:border-ink-700"
+                />
+              </div>
+
               <Button type="submit" disabled={isSubmitting} className="w-full mt-4">
                 {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : 'Guardar'}
               </Button>

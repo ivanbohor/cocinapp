@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { Loader2, Receipt, Eye, Search, X, Calendar, CreditCard, Banknote } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { SectionHint } from '@/components/ui/section-hint';
 
 // Definimos la estructura compleja de una Venta que incluye sus ítems
 interface VentaItem {
@@ -80,7 +81,10 @@ export default function AdminVentas() {
       {/* CABECERA */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Historial de Ventas</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Historial de Ventas</h2>
+            <SectionHint text="Auditá todas las órdenes cobradas, el desglose de productos vendidos y si los cobros fueron en Efectivo o Tarjeta para facilitar tu arqueo de caja." />
+          </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm">Audita y revisa el detalle de todos los tickets emitidos.</p>
         </div>
         <div className="flex items-center bg-slate-50 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 max-w-xs w-full">

@@ -6,6 +6,7 @@ import { toast } from '@/stores/useToastStore';
 import { confirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SectionHint } from '@/components/ui/section-hint';
 import { Loader2, TrendingDown, Receipt, Wallet, Trash2, Calendar, Plus } from 'lucide-react';
 
 interface Gasto {
@@ -124,7 +125,10 @@ export default function AdminGastos() {
   return (
     <div className="space-y-6 transition-colors duration-300">
       <div>
-        <h2 className="text-2xl font-bold text-ink-800 dark:text-white">Control de Gastos</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-ink-800 dark:text-white">Control de Gastos</h2>
+          <SectionHint text="Anotá cada costo operativo (mercadería, servicios, alquiler). El sistema resta estos montos de tus ventas para darte el beneficio real del mes." />
+        </div>
         <p className="text-ink-500 dark:text-ink-400 text-sm">Registra y categoriza los egresos de tu negocio.</p>
       </div>
 
