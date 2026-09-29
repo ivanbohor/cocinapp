@@ -390,8 +390,8 @@ export default function Login() {
               </p>
               <p className="mt-1 text-sm text-ink-600 dark:text-ink-400">
                 {isLoginView
-                  ? 'Creala gratis en menos de 5 minutos. Sin tarjeta.'
-                  : 'Entrá a tu panel y seguí gestionando tu restaurante.'}
+                  ? 'Creala gratis en menos de 1 minuto.'
+                  : 'Entrá a tu panel y potencia tu restaurante.'}
               </p>
               <button
                 type="button"
@@ -410,7 +410,7 @@ export default function Login() {
 
             {/* Trust signals */}
             <ul className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-500 dark:text-ink-400">
-              {['Sin tarjeta de crédito', 'Soporte en español', 'Cancelás cuando quieras'].map(
+              {['Sin tarjeta de crédito', 'Soporte Tecnico 24/7', 'Cancelás cuando quieras'].map(
                 (item) => (
                   <li key={item} className="inline-flex items-center gap-1.5">
                     <CheckCircle2
