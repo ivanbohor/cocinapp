@@ -572,11 +572,11 @@ export default function AdminRestaurant() {
         </div>
 
         {/* BOTÓN GUARDAR */}
-        <div className="flex justify-end">
+        <div className="flex justify-center sm:justify-end">
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg border-0 font-bold"
+            className="h-12 w-full sm:w-auto px-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg border-0 font-bold"
           >
             {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : null} Guardar Configuración
           </Button>
