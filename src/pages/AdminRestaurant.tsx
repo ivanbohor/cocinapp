@@ -32,6 +32,7 @@ export default function AdminRestaurant() {
     slug: '',
     color_principal: '#4f46e5',
     color_fondo: '#f8fafc',
+    color_tarjeta: '#ffffff',
     mensaje_bienvenida: '',
     logo_url: '',
   });
@@ -45,7 +46,7 @@ export default function AdminRestaurant() {
       setLoading(true);
       const { data, error } = await supabase
         .from('restaurantes')
-        .select('nombre, slug, color_principal, color_fondo, mensaje_bienvenida, logo_url')
+        .select('*')
         .eq('id', restauranteId)
         .single();
 
@@ -56,6 +57,7 @@ export default function AdminRestaurant() {
           slug: data.slug || '',
           color_principal: data.color_principal || '#4f46e5',
           color_fondo: data.color_fondo || '#f8fafc',
+          color_tarjeta: data.color_tarjeta || '#ffffff',
           mensaje_bienvenida: data.mensaje_bienvenida || '¡Bienvenidos a nuestro menú digital!',
           logo_url: data.logo_url || '',
         });
@@ -81,17 +83,32 @@ export default function AdminRestaurant() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
+      const basePayload: Record<string, unknown> = {
+        nombre: formData.nombre,
+        slug: formData.slug || null,
+        color_principal: formData.color_principal,
+        color_fondo: formData.color_fondo,
+        mensaje_bienvenida: formData.mensaje_bienvenida,
+        logo_url: formData.logo_url.trim() || null,
+      };
+
+      // Intentamos guardar con color_tarjeta si existe en Supabase
+      let { error } = await supabase
         .from('restaurantes')
         .update({
-          nombre: formData.nombre,
-          slug: formData.slug || null,
-          color_principal: formData.color_principal,
-          color_fondo: formData.color_fondo,
-          mensaje_bienvenida: formData.mensaje_bienvenida,
-          logo_url: formData.logo_url.trim() || null,
+          ...basePayload,
+          color_tarjeta: formData.color_tarjeta,
         })
         .eq('id', restauranteId);
+
+      // Si la columna aún no fue migrada en la BD (código 42703 / error de columna inexistente), guardamos el resto
+      if (error && (error.code === '42703' || error.message?.includes('color_tarjeta'))) {
+        const fallback = await supabase
+          .from('restaurantes')
+          .update(basePayload)
+          .eq('id', restauranteId);
+        error = fallback.error;
+      }
 
       if (error) {
         if (error.code === '23505') {
@@ -231,26 +248,27 @@ export default function AdminRestaurant() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
-                    Color Marca (Header)
+              {/* PALETA DE 3 COLORES: MARCA, FONDO, TARJETAS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
+                    Color Marca
                   </label>
                   <div className="flex items-center gap-2 mt-1">
                     <input
                       type="color"
                       value={formData.color_principal}
                       onChange={(e) => setFormData({ ...formData, color_principal: e.target.value })}
-                      className="h-9 w-12 rounded border cursor-pointer dark:border-slate-700 bg-transparent"
+                      className="h-8 w-10 rounded border cursor-pointer dark:border-slate-700 bg-transparent"
                     />
-                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                    <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300">
                       {formData.color_principal.toUpperCase()}
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
+                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
                     Color Fondo
                   </label>
                   <div className="flex items-center gap-2 mt-1">
@@ -258,10 +276,27 @@ export default function AdminRestaurant() {
                       type="color"
                       value={formData.color_fondo}
                       onChange={(e) => setFormData({ ...formData, color_fondo: e.target.value })}
-                      className="h-9 w-12 rounded border cursor-pointer dark:border-slate-700 bg-transparent"
+                      className="h-8 w-10 rounded border cursor-pointer dark:border-slate-700 bg-transparent"
                     />
-                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                    <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300">
                       {formData.color_fondo.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
+                    Color Tarjetas
+                  </label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="color"
+                      value={formData.color_tarjeta}
+                      onChange={(e) => setFormData({ ...formData, color_tarjeta: e.target.value })}
+                      className="h-8 w-10 rounded border cursor-pointer dark:border-slate-700 bg-transparent"
+                    />
+                    <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300">
+                      {formData.color_tarjeta.toUpperCase()}
                     </span>
                   </div>
                 </div>
@@ -320,7 +355,7 @@ export default function AdminRestaurant() {
               </div>
 
               {/* Smartphone Frame */}
-              <div className="w-[280px] sm:w-[310px] h-[480px] rounded-[38px] p-2.5 bg-slate-900 border-4 border-slate-700 dark:border-slate-800 shadow-2xl relative flex flex-col overflow-hidden select-none">
+              <div className="w-[280px] sm:w-[310px] h-[500px] rounded-[38px] p-2.5 bg-slate-900 border-4 border-slate-700 dark:border-slate-800 shadow-2xl relative flex flex-col overflow-hidden select-none">
                 {/* Dynamic Notch */}
                 <div className="absolute top-3.5 left-1/2 -translate-x-1/2 w-24 h-4 bg-black rounded-full z-30 flex items-center justify-center">
                   <div className="w-2 h-2 rounded-full bg-slate-800 mr-2"></div>
@@ -359,15 +394,15 @@ export default function AdminRestaurant() {
                     </div>
                   </div>
 
-                  {/* Sample Search bar */}
-                  <div className="px-3 -mt-2.5 relative z-20">
-                    <div className="bg-white rounded-lg shadow-sm border border-slate-200/80 p-1.5 flex items-center gap-1.5">
-                      <Search size={12} className="text-slate-400 ml-1" />
-                      <span className="text-[10px] text-slate-400">Buscar en la carta...</span>
+                  {/* Minimalist Search Bar in Preview */}
+                  <div className="px-3 sticky top-1 z-20 mt-1.5">
+                    <div className="bg-white/85 backdrop-blur-md rounded-lg shadow-2xs border border-slate-200/80 p-1.5 flex items-center gap-1.5">
+                      <Search size={11} className="text-slate-400 ml-1" />
+                      <span className="text-[10px] text-slate-400">Buscar plato o bebida...</span>
                     </div>
                   </div>
 
-                  {/* Sample Menu Items */}
+                  {/* Sample Menu Items with color_tarjeta */}
                   <div className="p-3 space-y-3 flex-1 text-slate-800">
                     <div>
                       <h5
@@ -376,27 +411,32 @@ export default function AdminRestaurant() {
                       >
                         DESTACADOS
                       </h5>
-                      <div className="space-y-1.5">
-                        <div className="bg-white p-2 rounded-xl shadow-xs border border-slate-100 flex items-center justify-between gap-2">
+                      <div className="space-y-2">
+                        {/* Plato con foto */}
+                        <div
+                          className="rounded-xl p-2.5 shadow-2xs border border-black/5 flex items-center justify-between gap-2 transition-colors"
+                          style={{ backgroundColor: formData.color_tarjeta }}
+                        >
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-xs text-slate-800 truncate">Plato Especial</p>
                             <p className="text-[9px] text-slate-500 line-clamp-1">Ingredientes frescos y receta casera.</p>
-                            <span className="text-xs font-black text-slate-900 mt-0.5 block">$ 6.500</span>
+                            <span className="text-xs font-black text-slate-900 mt-1 block">$ 6.500</span>
                           </div>
-                          <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-300">
+                          <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-300 overflow-hidden">
                             <UtensilsCrossed size={16} />
                           </div>
                         </div>
 
-                        <div className="bg-white p-2 rounded-xl shadow-xs border border-slate-100 flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-xs text-slate-800 truncate">Bebida Artesanal</p>
-                            <p className="text-[9px] text-slate-500 line-clamp-1">500ml con opción sin alcohol.</p>
-                            <span className="text-xs font-black text-slate-900 mt-0.5 block">$ 2.800</span>
+                        {/* Plato sin foto (formato compacto tradicional) */}
+                        <div
+                          className="rounded-xl p-2.5 shadow-2xs border border-black/5 flex flex-col justify-between gap-1 transition-colors"
+                          style={{ backgroundColor: formData.color_tarjeta }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="font-bold text-xs text-slate-800 truncate">Bebida Artesanal 500ml</p>
+                            <span className="text-xs font-black text-slate-900">$ 2.800</span>
                           </div>
-                          <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-300">
-                            <UtensilsCrossed size={16} />
-                          </div>
+                          <p className="text-[9px] text-slate-500 line-clamp-1">Opción clásica o sin alcohol.</p>
                         </div>
                       </div>
                     </div>
