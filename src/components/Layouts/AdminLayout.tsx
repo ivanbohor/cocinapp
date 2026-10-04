@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { supabase } from '@/lib/supabase';
 import { useStockAlarms } from '@/hooks/useStockAlarms';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import {
   BarChart3, Utensils, Table, Wallet, Package, Settings,
@@ -127,7 +128,9 @@ export default function AdminLayout() {
       {/* CONTENIDO */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[100vw] md:max-w-none overflow-x-hidden">
         <div className="mx-auto w-full">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

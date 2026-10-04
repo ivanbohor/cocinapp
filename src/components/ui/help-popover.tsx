@@ -97,22 +97,23 @@ export function HelpPopover({
       </button>
 
       {isOpen &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            role="dialog"
-            style={{
-              position: 'fixed',
-              top: position.top,
-              left: position.left,
-              zIndex: 100,
-            }}
-            className="w-80 max-w-[calc(100vw-2rem)] rounded-card border border-ink-200 bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 dark:border-ink-800 dark:bg-ink-900"
-          >
-            {children}
-          </div>,
-          document.body
-        )}
+  createPortal(
+    <div
+      ref={popoverRef}
+      role="dialog"
+      style={{
+        position: 'fixed',
+        top: position.top,
+        left: position.left,
+        zIndex: 100,
+      }}
+      className="w-80 max-w-[calc(100vw-2rem)] rounded-card border border-ink-200 bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 dark:border-ink-800 dark:bg-ink-900"
+      data-help-popover
+    >
+      {children}
+    </div>,
+    document.body
+  )}
     </>
   );
 }
