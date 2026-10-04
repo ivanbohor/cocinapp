@@ -9,12 +9,17 @@ import {
   Loader2, Store, Link as LinkIcon, Palette, MessageSquare,
   Copy, CheckCircle2, ExternalLink, Image as ImageIcon,
   Smartphone, Search, UtensilsCrossed, Sparkles, Phone,
+  MapPin, QrCode, Type as TypeIcon, ImagePlus,
 } from 'lucide-react';
+import { ContactIcon, type Contacto } from '@/components/icons/contact-icons';
+// Al inicio del archivo, junto a los demás imports
 import { toast } from '@/stores/useToastStore';
-import { InstagramIcon } from '@/components/icons/InstagramIcon';
 import { QRModal } from '@/components/modals/QRModal';
-import { QrCode } from 'lucide-react';   // ← agregar al import de lucide
+import { ContactosEditor } from '@/components/forms/ContactosEditor';
 
+
+type ColorTexto = 'auto' | 'oscuro' | 'claro';
+type FondoTipo = 'color' | 'imagen';
 
 export default function AdminRestaurant() {
   const { restauranteId } = useAuthStore();
@@ -26,15 +31,20 @@ export default function AdminRestaurant() {
   const [formData, setFormData] = useState({
     nombre: '',
     slug: '',
+    direccion: '',                    // ← NUEVO
     color_principal: '#4f46e5',
     color_fondo: '#f8fafc',
     color_tarjeta: '#ffffff',
+    color_texto: 'auto' as ColorTexto, // ← NUEVO
+    fondo_tipo: 'color' as FondoTipo,  // ← NUEVO
+    fondo_imagen_url: '',              // ← NUEVO
     mensaje_bienvenida: '',
     logo_url: '',
-    whatsapp: '',
-    instagram: '',
     mostrar_sugerencias: true,
   });
+
+  // ← NUEVO: contactos dinámicos
+  const [contactos, setContactos] = useState<Contacto[]>([]);
 
   useEffect(() => {
     if (restauranteId) fetchRestauranteInfo();
@@ -54,15 +64,42 @@ export default function AdminRestaurant() {
         setFormData({
           nombre: data.nombre || '',
           slug: data.slug || '',
+          direccion: data.direccion || '',
           color_principal: data.color_principal || '#4f46e5',
           color_fondo: data.color_fondo || '#f8fafc',
           color_tarjeta: data.color_tarjeta || '#ffffff',
+          color_texto: (data.color_texto as ColorTexto) || 'auto',
+          fondo_tipo: (data.fondo_tipo as FondoTipo) || 'color',
+          fondo_imagen_url: data.fondo_imagen_url || '',
           mensaje_bienvenida: data.mensaje_bienvenida || '¡Bienvenidos a nuestro menú digital!',
           logo_url: data.logo_url || '',
-          whatsapp: data.whatsapp || '',
-          instagram: data.instagram || '',
           mostrar_sugerencias: data.mostrar_sugerencias ?? true,
         });
+
+        // ← NUEVO: cargar contactos (con migración transparente)
+        let loadedContacts: Contacto[] = [];
+        if (Array.isArray(data.contactos) && data.contactos.length > 0) {
+          loadedContacts = data.contactos as Contacto[];
+        } else {
+          // Migración: si tiene whatsapp/instagram viejos, los pasamos al formato nuevo
+          if (data.whatsapp) {
+            loadedContacts.push({
+              id: crypto.randomUUID(),
+              tipo: 'whatsapp',
+              valor: data.whatsapp,
+              label: '',
+            });
+          }
+          if (data.instagram) {
+            loadedContacts.push({
+              id: crypto.randomUUID(),
+              tipo: 'instagram',
+              valor: data.instagram,
+              label: '',
+            });
+          }
+        }
+        setContactos(loadedContacts);
       }
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -85,33 +122,39 @@ export default function AdminRestaurant() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      // Construimos el payload completo
+      // ← NUEVO: filtrar contactos incompletos antes de guardar
+      const contactosLimpios = contactos.filter((c) => c.valor.trim() !== '');
+
       const fullPayload: Record<string, unknown> = {
         nombre: formData.nombre,
         slug: formData.slug || null,
+        direccion: formData.direccion.trim() || null,
         color_principal: formData.color_principal,
         color_fondo: formData.color_fondo,
         color_tarjeta: formData.color_tarjeta,
+        color_texto: formData.color_texto,
+        fondo_tipo: formData.fondo_tipo,
+        fondo_imagen_url: formData.fondo_imagen_url.trim() || null,
         mensaje_bienvenida: formData.mensaje_bienvenida,
         logo_url: formData.logo_url.trim() || null,
-        whatsapp: formData.whatsapp.trim() || null,
-        instagram: formData.instagram.trim() || null,
         mostrar_sugerencias: formData.mostrar_sugerencias,
+        contactos: contactosLimpios,
       };
 
-      // Intentamos guardar todo
       let { error } = await supabase
         .from('restaurantes')
         .update(fullPayload)
         .eq('id', restauranteId);
 
-      // Fallback: si alguna columna nueva no existe en la BD, quitamos esos campos y reintentamos
+      // Fallback si alguna columna nueva no existe
       if (error && (error.code === '42703' || error.message?.includes('column'))) {
         const safePayload = { ...fullPayload };
         delete safePayload.color_tarjeta;
-        delete safePayload.whatsapp;
-        delete safePayload.instagram;
-        delete safePayload.mostrar_sugerencias;
+        delete safePayload.direccion;
+        delete safePayload.color_texto;
+        delete safePayload.fondo_tipo;
+        delete safePayload.fondo_imagen_url;
+        delete safePayload.contactos;
 
         const fallback = await supabase
           .from('restaurantes')
@@ -122,19 +165,16 @@ export default function AdminRestaurant() {
 
       if (error) {
         if (error.code === '23505') {
-          toast.error(
-            'Ese enlace ya está en uso',
-            'Probá con otro slug (ej: "mi-restaurante-2").'
-          );
+          toast.error('Ese enlace ya está en uso', 'Probá con otro slug (ej: "mi-restaurante-2").');
           return;
         }
         throw error;
       }
 
-      toast.success(
-        'Configuración guardada',
-        'Tus cambios ya están visibles en la carta digital.'
-      );
+      // Sincronizar contactos filtrados al estado local
+      setContactos(contactosLimpios);
+
+      toast.success('Configuración guardada', 'Tus cambios ya están visibles en la carta digital.');
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error al guardar restaurante:', error);
@@ -165,6 +205,16 @@ export default function AdminRestaurant() {
       </div>
     );
   }
+
+  // Estilo del header del mockup según fondo_tipo
+  const headerStyle: React.CSSProperties =
+    formData.fondo_tipo === 'imagen' && formData.fondo_imagen_url
+      ? {
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url("${formData.fondo_imagen_url}")`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : { backgroundColor: formData.color_principal };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -211,10 +261,26 @@ export default function AdminRestaurant() {
                 className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
               />
             </div>
+
+            {/* ← NUEVO: Dirección */}
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <MapPin size={16} /> Dirección (Opcional)
+              </label>
+              <Input
+                placeholder="Av. Corrientes 1234, CABA"
+                value={formData.direccion}
+                onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+              />
+              <p className="text-xs text-slate-400">
+                Se mostrará debajo de tu nombre en la carta digital.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* CONTACTO Y REDES */}
+        {/* CONTACTO Y REDES — DINÁMICO */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -224,35 +290,8 @@ export default function AdminRestaurant() {
               </span>
             </h3>
           </div>
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <Phone size={16} /> WhatsApp
-              </label>
-              <Input
-                placeholder="+54 9 11 1234-5678"
-                value={formData.whatsapp}
-                onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-              />
-              <p className="text-xs text-slate-400">
-                Se mostrará como botón de contacto en tu carta digital.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <InstagramIcon size={16} /> Instagram
-              </label>
-              <Input
-                placeholder="@turestaurante"
-                value={formData.instagram}
-                onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-              />
-              <p className="text-xs text-slate-400">
-                Se mostrará como enlace a tu perfil en la carta digital.
-              </p>
-            </div>
+          <div className="p-5">
+            <ContactosEditor contactos={contactos} onChange={setContactos} />
           </div>
         </div>
 
@@ -268,7 +307,6 @@ export default function AdminRestaurant() {
           </div>
 
           <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* COLUMNA IZQUIERDA: FORMULARIO */}
             <div className="lg:col-span-6 space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
@@ -300,13 +338,41 @@ export default function AdminRestaurant() {
                 />
               </div>
 
-              {/* PALETA DE 3 COLORES */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
-                    Color Marca
-                  </label>
-                  <div className="flex items-center gap-2 mt-1">
+              {/* COLOR DE MARCA — AHORA CON OPCIÓN DE FONDO POR IMAGEN */}
+              <div className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <Palette size={14} /> Encabezado de la Carta
+                </label>
+
+                {/* Selector de tipo: color vs imagen */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, fondo_tipo: 'color' })}
+                    className={`text-xs font-medium rounded-field border px-3 py-2 transition-colors ${
+                      formData.fondo_tipo === 'color'
+                        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950/30 dark:text-brand-300 dark:border-brand-700'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    Color sólido
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, fondo_tipo: 'imagen' })}
+                    className={`text-xs font-medium rounded-field border px-3 py-2 transition-colors flex items-center justify-center gap-1.5 ${
+                      formData.fondo_tipo === 'imagen'
+                        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950/30 dark:text-brand-300 dark:border-brand-700'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <ImagePlus size={12} /> Imagen
+                  </button>
+                </div>
+
+                {/* Contenido condicional */}
+                {formData.fondo_tipo === 'color' ? (
+                  <div className="flex items-center gap-2">
                     <input
                       type="color"
                       value={formData.color_principal}
@@ -317,8 +383,24 @@ export default function AdminRestaurant() {
                       {formData.color_principal.toUpperCase()}
                     </span>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="https://ejemplo.com/fondo.jpg"
+                      value={formData.fondo_imagen_url}
+                      onChange={(e) => setFormData({ ...formData, fondo_imagen_url: e.target.value })}
+                      className="dark:bg-slate-900 dark:border-slate-700 dark:text-white text-xs"
+                    />
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Se aplicará un overlay oscuro sobre la imagen para garantizar
+                      la legibilidad del texto.
+                    </p>
+                  </div>
+                )}
+              </div>
 
+              {/* PALETA: FONDO + TARJETAS + TEXTO */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
                     Color Fondo
@@ -352,6 +434,24 @@ export default function AdminRestaurant() {
                     </span>
                   </div>
                 </div>
+
+                {/* ← NUEVO: Color de texto */}
+                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                    <TypeIcon size={12} /> Texto
+                  </label>
+                  <select
+                    value={formData.color_texto}
+                    onChange={(e) =>
+                      setFormData({ ...formData, color_texto: e.target.value as ColorTexto })
+                    }
+                    className="h-8 w-full rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs dark:text-white outline-none mt-1"
+                  >
+                    <option value="auto">Automático</option>
+                    <option value="oscuro">Oscuro</option>
+                    <option value="claro">Claro</option>
+                  </select>
+                </div>
               </div>
 
               {/* TOGGLE: MOSTRAR SUGERENCIAS */}
@@ -366,8 +466,7 @@ export default function AdminRestaurant() {
                         Mostrar Sugerencias del Chef
                       </p>
                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-snug">
-                        Destacá platos al inicio de tu carta. Ideal para promociones del día
-                        o especialidades de la casa.
+                        Destacá platos al inicio de tu carta. Ideal para promociones del día.
                       </p>
                     </div>
                   </div>
@@ -411,8 +510,6 @@ export default function AdminRestaurant() {
                     <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-indigo-600 dark:text-indigo-400 break-all select-all">
                       {publicUrl}
                     </div>
-
-                    {/* Fila 1: Copiar + Ver Carta */}
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -429,8 +526,6 @@ export default function AdminRestaurant() {
                         </Button>
                       </a>
                     </div>
-
-                    {/* Fila 2: Generar QR (NUEVO) */}
                     <Button
                       type="button"
                       variant="outline"
@@ -468,9 +563,10 @@ export default function AdminRestaurant() {
                   className="w-full h-full rounded-[28px] overflow-y-auto overflow-x-hidden flex flex-col transition-colors duration-300 relative text-left"
                   style={{ backgroundColor: formData.color_fondo }}
                 >
+                  {/* Header dinámico (color o imagen) */}
                   <div
-                    className="pt-8 pb-5 px-3 text-center text-white relative shadow-sm transition-colors duration-300"
-                    style={{ backgroundColor: formData.color_principal }}
+                    className="pt-8 pb-5 px-3 text-center text-white relative shadow-sm transition-all duration-300"
+                    style={headerStyle}
                   >
                     <div className="relative z-10 flex flex-col items-center">
                       {formData.logo_url ? (
@@ -488,9 +584,34 @@ export default function AdminRestaurant() {
                       <h4 className="text-base font-black leading-tight tracking-tight drop-shadow-sm">
                         {formData.nombre.trim() || 'Nombre de tu Local'}
                       </h4>
-                      <p className="text-[10px] text-white/90 font-medium mt-0.5 line-clamp-2 leading-tight max-w-[200px]">
+
+                      {/* ← NUEVO: Dirección en el header */}
+                      {formData.direccion.trim() && (
+                        <p className="text-[9px] text-white/80 font-medium mt-1 flex items-center gap-1">
+                          <MapPin size={9} /> {formData.direccion}
+                        </p>
+                      )}
+
+                      <p className="text-[10px] text-white/90 font-medium mt-1 line-clamp-2 leading-tight max-w-[200px]">
                         {formData.mensaje_bienvenida.trim() || '¡Bienvenidos a nuestra carta digital!'}
                       </p>
+
+                      {/* ← NUEVO: Contactos en el preview */}
+                      {contactos.filter((c) => c.valor.trim()).length > 0 && (
+                        <div className="flex flex-wrap items-center justify-center gap-1 mt-2">
+                          {contactos
+                            .filter((c) => c.valor.trim())
+                            .slice(0, 4)
+                            .map((c) => (
+                              <span
+                                key={c.id}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[8px] font-semibold text-white"
+                              >
+                                <ContactIcon tipo={c.tipo} size={9} /> 
+                              </span>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -501,7 +622,6 @@ export default function AdminRestaurant() {
                     </div>
                   </div>
 
-                  {/* Preview de sugerencias (si está activo) */}
                   {formData.mostrar_sugerencias && (
                     <div className="p-3 pb-0">
                       <div
@@ -583,7 +703,6 @@ export default function AdminRestaurant() {
         </div>
       </form>
 
-      {/* Modal de QR */}
       <QRModal
         isOpen={isQRModalOpen}
         onClose={() => setIsQRModalOpen(false)}
@@ -594,3 +713,4 @@ export default function AdminRestaurant() {
     </div>
   );
 }
+

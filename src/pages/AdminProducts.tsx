@@ -6,6 +6,8 @@ import { toast } from '@/stores/useToastStore';
 import { confirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Share2 } from 'lucide-react';
+import { ShareSuggestionsModal, type SavedShareOptions } from '@/components/modals/ShareSuggestionsModal';
 import { SectionHint } from '@/components/ui/section-hint';
 import {
   Loader2,
@@ -22,6 +24,7 @@ import {
   CheckSquare,
   Square,
   Sparkles,   // ← NUEVO (sugerencias)
+  
 } from 'lucide-react';
 import { HelpPopover } from '@/components/ui/help-popover';
 interface Producto {
@@ -49,6 +52,31 @@ export default function AdminProducts() {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [restauranteInfo, setRestauranteInfo] = useState<{
+    nombre: string;
+    slug: string;
+    logo_url: string | null;
+    color_principal: string;
+    color_tarjeta: string;
+    color_fondo: string;
+    whatsapp: string | null;
+    direccion: string | null;
+    share_options: SavedShareOptions | null;
+  }>({
+    nombre: '',
+    slug: '',
+    logo_url: null,
+    color_principal: '#f97316',
+    color_tarjeta: '#ffffff',
+    color_fondo: '#fbfaf7',
+    whatsapp: null,
+    direccion: null,
+    share_options: null,
+  });
+
+    
+
 
   const [categoriasActivas, setCategoriasActivas] = useState<string[]>([]);
 
@@ -77,19 +105,38 @@ export default function AdminProducts() {
       if (prodError) throw prodError;
 
       const { data: restData } = await supabase
-        .from('restaurantes')
-        .select('orden_categorias')
-        .eq('id', restauranteId)
-        .single();
+          .from('restaurantes')
+           .select('orden_categorias, nombre, slug, logo_url, color_principal, color_tarjeta, color_fondo, whatsapp, direccion, share_options')
+          .eq('id', restauranteId)
+          .single();
+          if (prodData) setProductos(prodData);
+          if (restData) {
+            if (restData.orden_categorias) setOrdenGuardado(restData.orden_categorias);
+            setRestauranteInfo({
+              nombre: restData.nombre || '',
+              slug: restData.slug || '',
+              logo_url: restData.logo_url || null,
+              color_principal: restData.color_principal || '#f97316',
+              color_tarjeta: restData.color_tarjeta || '#ffffff',
+              color_fondo: restData.color_fondo || '#fbfaf7',
+              whatsapp: restData.whatsapp || null,
+              direccion: restData.direccion || null,
+              share_options: (restData.share_options as SavedShareOptions | null) ?? null,
+            });
+          }
+          
 
-      if (prodData) setProductos(prodData);
-      if (restData && restData.orden_categorias) setOrdenGuardado(restData.orden_categorias);
+        
+
+      
     } catch (error) {
       console.error('Error:', error);
       toast.error('No pudimos cargar el catálogo', error instanceof Error ? error.message : undefined);
     } finally {
       setLoading(false);
     }
+    
+
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -130,6 +177,7 @@ export default function AdminProducts() {
     }
   };
 
+
   const handleDelete = async (id: string) => {
     const producto = productos.find(p => p.id === id);
     const ok = await confirm({
@@ -154,6 +202,21 @@ export default function AdminProducts() {
       toast.error('No pudimos eliminar el producto', 'Intentá de nuevo en unos segundos.');
     }
   };
+
+  const handleSaveShareOptions = async (options: SavedShareOptions) => {
+  if (!restauranteId) return;
+  try {
+    const { error } = await supabase
+      .from('restaurantes')
+      .update({ share_options: options })
+      .eq('id', restauranteId);
+    if (error) throw error;
+
+    setRestauranteInfo((prev) => ({ ...prev, share_options: options }));
+  } catch (err) {
+    console.error('No se pudieron guardar las preferencias de compartir:', err);
+  }
+};
 
   // ===============================================
   // SELECCIÓN MÚLTIPLE
@@ -439,6 +502,7 @@ export default function AdminProducts() {
     setIsModalOpen(true);
   };
 
+  const sugerenciasCount = productos.filter((p) => p.es_sugerencia).length;
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-ink-500 dark:text-ink-400">
@@ -557,6 +621,22 @@ export default function AdminProducts() {
             className="bg-white dark:bg-ink-800 text-ink-700 dark:text-ink-100 border-ink-200 dark:border-ink-700"
           >
             <ListOrdered size={18} className="mr-2" /> Organizar Carta
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setIsShareModalOpen(true)}
+            disabled={sugerenciasCount === 0}
+            title={
+              sugerenciasCount === 0
+                ? 'Marcá platos como "Sugerencia del Chef" para habilitar esta opción'
+                : `Compartir ${sugerenciasCount} sugerencia${sugerenciasCount > 1 ? 's' : ''}`
+            }
+            className="bg-white dark:bg-ink-800 text-ink-700 dark:text-ink-100 border-ink-200 dark:border-ink-700
+                      disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Share2 size={18} className="mr-2" />
+            Compartir Sugerencias
           </Button>
 
           {/* ✅ CORREGIDO: se usa el helper abrirModalNuevo */}
@@ -814,6 +894,27 @@ export default function AdminProducts() {
           </div>
         </div>
       )}
+
+
+      <ShareSuggestionsModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          restaurante={restauranteInfo}
+          sugerencias={productos
+            .filter((p) => p.es_sugerencia)
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              price: p.price,
+              image_url: p.image_url,
+            }))}
+          initialOptions={restauranteInfo.share_options}
+          onSaveOptions={handleSaveShareOptions}
+        />
+
+           
+
     </div>
   );
 }
