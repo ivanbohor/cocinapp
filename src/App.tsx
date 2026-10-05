@@ -7,6 +7,9 @@ import { Toaster } from '@/components/ui/toast';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
 import ProtectedRoute from '@/components/Layouts/ProtectedRoute';
 import AdminHome from '@/pages/AdminHome';
+import AuthCallback from '@/pages/AuthCallback';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
 
 // ─── Carga diferida (lazy chunks) ─────────────────────────────────────────────
 // Cada import() genera un chunk JS independiente que solo se descarga
@@ -52,6 +55,9 @@ export default function App() {
           {/* Raíz */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/recuperar" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Ruta pública del Menú Digital — fuera del candado de seguridad */}
           <Route path="/m/:slug" element={<PublicMenu />} />
