@@ -128,3 +128,18 @@ body {
 .public-menu-scope {
   color-scheme: light;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   IMPRESIÓN DE TICKETS — Comanderas térmicas 80mm
+   El diálogo del navegador respeta @page y el ancho de 80mm.
+   Compatible con cualquier impresora térmica instalada por driver.
+   ═══════════════════════════════════════════════════════════ */
+@media print {
+  /* Ocultar todo lo que no sea el ticket */
+  body > *:not(.ticket-print-portal) {
+    display: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
