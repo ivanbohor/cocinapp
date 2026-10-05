@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { Toaster } from '@/components/ui/toast';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
 import ProtectedRoute from '@/components/Layouts/ProtectedRoute';
+import AdminHome from '@/pages/AdminHome';
 
 // ─── Carga diferida (lazy chunks) ─────────────────────────────────────────────
 // Cada import() genera un chunk JS independiente que solo se descarga
@@ -58,7 +59,8 @@ export default function App() {
           {/* Rutas privadas — solo admins */}
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
             <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route index element={<AdminHome />} />
+              <Route path="home" element={<AdminHome />} />
               <Route path="dashboard"    element={<AdminDashboard />} />
               <Route path="productos"    element={<AdminProducts />} />
               <Route path="mesas"        element={<AdminMesas />} />

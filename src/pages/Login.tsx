@@ -112,7 +112,7 @@ export default function Login() {
         }
 
         setAuth(authData.user, userData.restaurante_id, userData.rol);
-        navigate('/admin/dashboard');
+        navigate('/admin');
         return;
       }
 

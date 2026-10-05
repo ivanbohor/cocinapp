@@ -9,7 +9,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import {
   BarChart3, Utensils, Table, Wallet, Package, Settings,
-  LayoutDashboard, LogOut, Sun, Moon, Menu, X, Receipt, 
+  LayoutDashboard, LogOut, Sun, Moon, Menu, X, Receipt,  Home,
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -29,6 +29,7 @@ export default function AdminLayout() {
   };
 
   const menuItems = [
+    { path: '/admin', icon: Home, label: 'Inicio', end: true },
     { path: '/admin/dashboard', icon: BarChart3, label: 'Resumen Financiero' },
     { path: '/admin/productos', icon: Utensils, label: 'Menú y Productos' },
     { path: '/admin/mesas', icon: Table, label: 'Gestión de Mesas' },
@@ -88,6 +89,8 @@ export default function AdminLayout() {
             <NavLink
               key={item.path}
               to={item.path}
+              end={item.end}
+
               onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-3 rounded-lg font-medium transition-all duration-200 ${
