@@ -27,6 +27,7 @@ import {
   
 } from 'lucide-react';
 import { HelpPopover } from '@/components/ui/help-popover';
+import { cn } from '@/lib/utils';
 interface Producto {
   id: string;
   name: string;
@@ -502,6 +503,36 @@ export default function AdminProducts() {
     setIsModalOpen(true);
   };
 
+  /* Toggle rápido de sugerencia desde la lista (sin abrir el modal) */
+const toggleSugerencia = async (prod: Producto) => {
+  const nuevoValor = !prod.es_sugerencia;
+
+  // Optimistic
+  const backup = productos;
+  setProductos((prev) =>
+    prev.map((p) => (p.id === prod.id ? { ...p, es_sugerencia: nuevoValor } : p))
+  );
+
+  try {
+    const { error } = await supabase
+      .from('productos')
+      .update({ es_sugerencia: nuevoValor })
+      .eq('id', prod.id);
+    if (error) throw error;
+
+    toast.success(
+      nuevoValor ? 'Marcado como sugerencia' : 'Desmarcado',
+      `"${prod.name}" ${nuevoValor ? 'aparecerá' : 'ya no aparecerá'} en Sugerencias del Chef.`
+    );
+  } catch (err) {
+    console.error('Error al actualizar sugerencia:', err);
+    setProductos(backup);
+    toast.error('No pudimos actualizar la sugerencia');
+  }
+};
+
+
+
   const sugerenciasCount = productos.filter((p) => p.es_sugerencia).length;
   if (loading) {
     return (
@@ -674,97 +705,314 @@ export default function AdminProducts() {
       </div>
 
            {/* ← FIX responsive: contenedor con scroll horizontal */}
-      <div className="bg-white dark:bg-ink-900 rounded-card border border-ink-200 dark:border-ink-800 shadow-card overflow-hidden">
-        <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-ink-50 dark:bg-ink-950/50 text-ink-700 dark:text-ink-300 border-b border-ink-200 dark:border-ink-800">
-              <tr>
-                <th className="px-4 py-4 w-10 text-center">
-                  <button onClick={toggleSelectAll} className="text-ink-500 dark:text-ink-400 hover:text-ink-800 dark:hover:text-white">
-                    {filtered.length > 0 && selectedIds.length === filtered.length ? (
+
+           {/* ══════════════════════════════════════════════════════════
+    MOBILE (< lg): tarjetas verticales con acciones táctiles
+    ══════════════════════════════════════════════════════════ */}
+<div className="lg:hidden space-y-3">
+  {/* Toolbar de selección */}
+  {filtered.length > 0 && (
+    <div className="flex items-center justify-between px-1">
+      <button
+        type="button"
+        onClick={toggleSelectAll}
+        className="flex items-center gap-2 text-xs font-medium text-ink-600 dark:text-ink-400"
+      >
+        {selectedIds.length === filtered.length && filtered.length > 0 ? (
+          <CheckSquare size={16} className="text-brand-600 dark:text-brand-400" />
+        ) : (
+          <Square size={16} />
+        )}
+        {selectedIds.length === filtered.length && filtered.length > 0
+          ? 'Deseleccionar todo'
+          : 'Seleccionar todo'}
+      </button>
+      <span className="text-xs text-ink-500 dark:text-ink-400">
+        {filtered.length} producto{filtered.length !== 1 ? 's' : ''}
+      </span>
+    </div>
+  )}
+
+  {filtered.length === 0 && (
+    <div className="text-center py-12 text-ink-500 dark:text-ink-400 text-sm bg-white dark:bg-ink-900 rounded-card border border-ink-200 dark:border-ink-800">
+      {searchTerm
+        ? `No hay productos que coincidan con "${searchTerm}"`
+        : 'Todavía no cargaste ningún producto.'}
+    </div>
+  )}
+
+  {filtered.map((prod) => {
+    const isSelected = selectedIds.includes(prod.id);
+    return (
+      <article
+        key={prod.id}
+        className={cn(
+          'rounded-card border bg-white dark:bg-ink-900 shadow-card overflow-hidden transition-colors',
+          isSelected
+            ? 'border-brand-300 dark:border-brand-800 bg-brand-50/40 dark:bg-brand-950/20'
+            : 'border-ink-200 dark:border-ink-800'
+        )}
+      >
+        {/* Fila superior: checkbox + nombre clickeable + precio */}
+        <div className="flex items-start gap-3 p-4 pb-2">
+          <button
+            type="button"
+            onClick={() => toggleSelectOne(prod.id)}
+            aria-label={isSelected ? 'Deseleccionar producto' : 'Seleccionar producto'}
+            className="shrink-0 mt-0.5 text-ink-400 hover:text-ink-700 dark:hover:text-white"
+          >
+            {isSelected ? (
+              <CheckSquare size={20} className="text-brand-600 dark:text-brand-400" />
+            ) : (
+              <Square size={20} />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => abrirModalEditar(prod)}
+            className="flex-1 min-w-0 text-left group"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-bold text-sm text-ink-900 dark:text-white leading-snug group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                {prod.name}
+              </h3>
+              <span className="font-black text-sm text-ink-900 dark:text-white shrink-0">
+                ${prod.price.toLocaleString()}
+              </span>
+            </div>
+            {prod.description && (
+              <p className="text-xs text-ink-500 dark:text-ink-400 mt-0.5 line-clamp-2 leading-relaxed">
+                {prod.description}
+              </p>
+            )}
+          </button>
+        </div>
+
+        {/* Fila central: badges */}
+        <div className="flex items-center gap-2 px-4 pb-3 pl-11 flex-wrap">
+          <span className="bg-ink-100 dark:bg-ink-800 text-ink-700 dark:text-ink-300 px-2 py-0.5 rounded-md text-[10px] font-semibold">
+            {prod.category}
+          </span>
+          <span
+            className={cn(
+              'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
+              prod.status === 'Activo'
+                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-400'
+            )}
+          >
+            {prod.status}
+          </span>
+          {prod.es_sugerencia && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold uppercase">
+              <Sparkles size={10} />
+              Sugerencia
+            </span>
+          )}
+        </div>
+
+        {/* Fila inferior: acciones rápidas */}
+        <div className="flex border-t border-ink-100 dark:border-ink-800">
+          <button
+            type="button"
+            onClick={() => abrirModalEditar(prod)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold 
+                       text-ink-600 dark:text-ink-300 
+                       hover:bg-ink-50 dark:hover:bg-ink-800 
+                       active:bg-ink-100 dark:active:bg-ink-700
+                       transition-colors"
+          >
+            <Edit size={16} />
+            Editar
+          </button>
+
+          <div className="w-px bg-ink-100 dark:bg-ink-800" />
+
+          <button
+            type="button"
+            onClick={() => toggleSugerencia(prod)}
+            aria-label={prod.es_sugerencia ? 'Quitar de sugerencias' : 'Marcar como sugerencia'}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold transition-colors',
+              prod.es_sugerencia
+                ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                : 'text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800'
+            )}
+          >
+            <Sparkles size={16} className={prod.es_sugerencia ? 'fill-current' : ''} />
+            {prod.es_sugerencia ? 'Destacado' : 'Destacar'}
+          </button>
+
+          <div className="w-px bg-ink-100 dark:bg-ink-800" />
+
+          <button
+            type="button"
+            onClick={() => handleDelete(prod.id)}
+            aria-label="Eliminar producto"
+            className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold 
+                       text-red-500 dark:text-red-400 
+                       hover:bg-red-50 dark:hover:bg-red-950/30 
+                       active:bg-red-100 dark:active:bg-red-950/50
+                       transition-colors"
+          >
+            <Trash2 size={16} />
+            Eliminar
+          </button>
+        </div>
+      </article>
+    );
+  })}
+</div>
+
+{/* ══════════════════════════════════════════════════════════
+    DESKTOP (lg+): tabla con nombre clickeable + toggle rápido
+    ══════════════════════════════════════════════════════════ */}
+    <div className="hidden lg:block bg-white dark:bg-ink-900 rounded-card border border-ink-200 dark:border-ink-800 shadow-card overflow-hidden">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-ink-50 dark:bg-ink-950/50 text-ink-700 dark:text-ink-300 border-b border-ink-200 dark:border-ink-800">
+          <tr>
+            <th className="px-4 py-4 w-10 text-center">
+              <button
+                onClick={toggleSelectAll}
+                className="text-ink-500 dark:text-ink-400 hover:text-ink-800 dark:hover:text-white"
+              >
+                {filtered.length > 0 && selectedIds.length === filtered.length ? (
+                  <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
+                ) : (
+                  <Square size={18} />
+                )}
+              </button>
+            </th>
+            <th className="px-6 py-4">Producto</th>
+            <th className="px-6 py-4">Categoría</th>
+            <th className="px-6 py-4">Precio</th>
+            <th className="px-6 py-4 text-center">Estado</th>
+            <th className="px-6 py-4 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
+          {filtered.map((prod) => {
+            const isSelected = selectedIds.includes(prod.id);
+            return (
+              <tr
+                key={prod.id}
+                className={`hover:bg-ink-50 dark:hover:bg-ink-800/50 ${
+                  isSelected ? 'bg-brand-50/50 dark:bg-brand-950/20' : ''
+                }`}
+              >
+                <td className="px-4 py-4 text-center">
+                  <button
+                    onClick={() => toggleSelectOne(prod.id)}
+                    className="text-ink-400 hover:text-ink-700 dark:hover:text-white"
+                  >
+                    {isSelected ? (
                       <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
                     ) : (
                       <Square size={18} />
                     )}
                   </button>
-                </th>
-                <th className="px-6 py-4">Producto</th>
-                <th className="px-6 py-4">Categoría</th>
-                <th className="px-6 py-4">Precio</th>
-                <th className="px-6 py-4 text-center">Estado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
-              {filtered.map((prod) => {
-                const isSelected = selectedIds.includes(prod.id);
-                return (
-                  <tr key={prod.id} className={`hover:bg-ink-50 dark:hover:bg-ink-800/50 ${isSelected ? 'bg-brand-50/50 dark:bg-brand-950/20' : ''}`}>
-                    <td className="px-4 py-4 text-center">
-                      <button onClick={() => toggleSelectOne(prod.id)} className="text-ink-400 hover:text-ink-700 dark:hover:text-white">
-                        {isSelected ? (
-                          <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
-                        ) : (
-                          <Square size={18} />
-                        )}
-                      </button>
-                    </td>
+                </td>
 
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold dark:text-white">{prod.name}</p>
-                        {prod.es_sugerencia && (
-                          <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider"
-                            title="Sugerencia del Chef"
-                          >
-                            <Sparkles size={10} /> Sugerencia
-                          </span>
-                        )}
-                      </div>
-                      {prod.description && (
-                        <p className="text-xs text-ink-500 dark:text-ink-400 truncate max-w-xs">
-                          {prod.description}
-                        </p>
+                <td className="px-6 py-4">
+                  {/* ✅ Nombre clickeable para editar */}
+                  <button
+                    type="button"
+                    onClick={() => abrirModalEditar(prod)}
+                    className="text-left group flex items-center gap-2 flex-wrap"
+                    title="Click para editar"
+                  >
+                    <p className="font-bold dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 group-hover:underline underline-offset-4 transition-colors">
+                      {prod.name}
+                    </p>
+                    {prod.es_sugerencia && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider"
+                        title="Sugerencia del Chef"
+                      >
+                        <Sparkles size={10} /> Sugerencia
+                      </span>
+                    )}
+                  </button>
+                  {prod.description && (
+                    <p className="text-xs text-ink-500 dark:text-ink-400 truncate max-w-xs mt-0.5">
+                      {prod.description}
+                    </p>
+                  )}
+                </td>
+
+                <td className="px-6 py-4">
+                  <span className="bg-ink-100 dark:bg-ink-800 text-ink-700 dark:text-ink-300 px-2.5 py-1 rounded-md text-xs font-medium border border-transparent dark:border-ink-700">
+                    {prod.category}
+                  </span>
+                </td>
+                <td className="px-6 py-4 font-black dark:text-white">
+                  ${prod.price.toLocaleString()}
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      prod.status === 'Activo'
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                        : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-400'
+                    }`}
+                  >
+                    {prod.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="inline-flex items-center gap-1">
+                    {/* ✅ Toggle rápido de sugerencia */}
+                    <button
+                      type="button"
+                      onClick={() => toggleSugerencia(prod)}
+                      aria-label={
+                        prod.es_sugerencia ? 'Quitar de sugerencias' : 'Marcar como sugerencia'
+                      }
+                      title={
+                        prod.es_sugerencia ? 'Quitar de sugerencias' : 'Marcar como Sugerencia del Chef'
+                      }
+                      className={cn(
+                        'grid h-8 w-8 place-items-center rounded-md transition-colors',
+                        prod.es_sugerencia
+                          ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                          : 'text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-800 hover:text-amber-500'
                       )}
-                    </td>
+                    >
+                      <Sparkles size={18} className={prod.es_sugerencia ? 'fill-current' : ''} />
+                    </button>
 
-                    <td className="px-6 py-4">
-                      <span className="bg-ink-100 dark:bg-ink-800 text-ink-700 dark:text-ink-300 px-2.5 py-1 rounded-md text-xs font-medium border border-transparent dark:border-ink-700">
-                        {prod.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-black dark:text-white">${prod.price.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${prod.status === 'Activo' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-400'}`}>
-                        {prod.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => abrirModalEditar(prod)}
-                        className="text-ink-400 hover:text-brand-500"
-                      >
-                        <Edit size={18} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(prod.id)}
-                        className="text-ink-400 hover:text-red-500"
-                      >
-                        <Trash2 size={18} />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    {/* Editar */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => abrirModalEditar(prod)}
+                      aria-label="Editar producto"
+                      className="text-ink-400 hover:text-brand-500 h-8 w-8"
+                    >
+                      <Edit size={18} />
+                    </Button>
+
+                    {/* Eliminar */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(prod.id)}
+                      aria-label="Eliminar producto"
+                      className="text-ink-400 hover:text-red-500 h-8 w-8"
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+      
 
       {/* MODAL ORDENAR CATEGORÍAS */}
       {isOrderModalOpen && (
