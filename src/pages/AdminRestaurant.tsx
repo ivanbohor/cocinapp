@@ -11,7 +11,7 @@ import {
   Smartphone, Search, UtensilsCrossed, Sparkles, Phone,
   MapPin, QrCode, Type as TypeIcon, ImagePlus,
 } from 'lucide-react';
-import { ContactIcon, type Contacto } from '@/components/icons/contact-icons';
+import { ContactIcon, CONTACT_COLORS,CONTACT_SHORT_LABELS, type Contacto } from '@/components/icons/contact-icons';
 // Al inicio del archivo, junto a los demás imports
 import { toast } from '@/stores/useToastStore';
 import { QRModal } from '@/components/modals/QRModal';
@@ -596,22 +596,39 @@ export default function AdminRestaurant() {
                         {formData.mensaje_bienvenida.trim() || '¡Bienvenidos a nuestra carta digital!'}
                       </p>
 
-                      {/* ← NUEVO: Contactos en el preview */}
+
                       {contactos.filter((c) => c.valor.trim()).length > 0 && (
                         <div className="flex flex-wrap items-center justify-center gap-1 mt-2">
                           {contactos
                             .filter((c) => c.valor.trim())
                             .slice(0, 4)
-                            .map((c) => (
-                              <span
-                                key={c.id}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[8px] font-semibold text-white"
-                              >
-                                <ContactIcon tipo={c.tipo} size={9} /> 
-                              </span>
-                            ))}
+                            .map((c) => {
+                              const shortLabel =
+                                c.label?.trim() ||
+                                CONTACT_SHORT_LABELS[c.tipo] ||
+                                'Contacto';
+                              const color = CONTACT_COLORS[c.tipo] || '#64748b';
+
+                              return (
+                                <span
+                                  key={c.id}
+                                  className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-white shadow-sm"
+                                  style={{ backgroundColor: color }}
+                                >
+                                  <ContactIcon tipo={c.tipo} size={9} />
+                                  <span className="text-[8px] font-semibold whitespace-nowrap">
+                                    {shortLabel}
+                                  </span>
+                                </span>
+                              );
+                            })}
                         </div>
                       )}
+
+                   
+                  
+
+                     
                     </div>
                   </div>
 
