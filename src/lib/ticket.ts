@@ -32,6 +32,7 @@ export interface TicketData {
   amountPerPerson: number;
   paperWidth?: 58 | 80;   // ← NUEVO
 
+
 }
 
 const escapeHtml = (s: string) =>
@@ -84,9 +85,11 @@ export function buildTicketHtml(data: TicketData): string {
     ? `<tr><td class="lbl">${discountLabel}</td><td class="val">- ${money(discountValue)}</td></tr>`
     : '';
 
-  const surchargeRow = surchargeValue > 0
-    ? `<tr><td class="lbl">Recargo Tarjeta (${surchargePct}%)</td><td class="val">+ ${money(surchargeValue)}</td></tr>`
-    : '';
+    const surchargeRow = surchargeValue > 0
+  ? `<tr><td class="lbl">Recargo Pago Electrónico (${surchargePct}%)</td><td class="val">+ ${money(surchargeValue)}</td></tr>`
+  : '';
+  
+  //borrado roundingRow
 
   const splitRow = splitCount > 1
     ? `<tr><td class="lbl">División (${splitCount} pers.)</td><td class="val">${money(amountPerPerson)}</td></tr>`
@@ -270,8 +273,8 @@ export function buildTicketHtml(data: TicketData): string {
                     <td class="total-value">${money(total)}</td>
                 </tr>
                 </table>
+                <div class="payment-line">Método: ${escapeHtml(paymentMethod === 'Tarjeta' ? 'Pago Electrónico' : paymentMethod)}</div>
 
-                <div class="payment-line">Método: ${escapeHtml(paymentMethod)}</div>
 
                 <div class="sep"></div>
 
@@ -487,10 +490,14 @@ export async function buildTicketCanvas(data: TicketData): Promise<HTMLCanvasEle
     y += LH;
   }
   if (surchargeValue > 0) {
-    left(`Recargo Tarjeta (${surchargePct}%)`, PAD + 4, y, 13, '500', brand);
+    left(`Recargo Pago Electrónico (${surchargePct}%)`, PAD + 4, y, 13, '500', brand);
     right(`+ ${money(surchargeValue)}`, W - PAD - 4, y, 13, '700', brand);
     y += LH;
-  }
+    }
+  
+
+
+
   if (splitCount > 1) {
     left(`División (${splitCount} pers.)`, PAD + 4, y, 13, '500', 'rgba(255,255,255,0.65)');
     right(money(amountPerPerson), W - PAD - 4, y, 13, '700', '#ffffff');
@@ -525,8 +532,8 @@ export async function buildTicketCanvas(data: TicketData): Promise<HTMLCanvasEle
   y += LH_BIG;
 
   // ─── Método de pago ─────────────────────────────────
-  center(`Método: ${paymentMethod}`, y, 13, '600', 'rgba(255,255,255,0.85)');
-  y += LH + 4;
+  center(`Método: ${paymentMethod === 'Tarjeta' ? 'Pago Electrónico' : paymentMethod}`, y, 13, '600', 'rgba(255,255,255,0.85)');
+
 
   separator(y);
   y += LH_SEP - 2;

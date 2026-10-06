@@ -1,7 +1,7 @@
 // src/components/modals/PosSettingsModal.tsx
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Settings2, RotateCcw, Percent, CreditCard, DollarSign, Printer } from 'lucide-react';
+import { X, Settings2, RotateCcw, Percent, CreditCard, DollarSign, Printer, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePosSettingsStore } from '@/stores/usePosSettingsStore';
@@ -14,14 +14,16 @@ interface Props {
 
 export function PosSettingsModal({ isOpen, onClose }: Props) {
     const {
-    cardSurcharge,
-    defaultDiscountMode,
-    paperWidth,
-    setCardSurcharge,
-    setDefaultDiscountMode,
-    setPaperWidth,   
-    resetToDefaults,
-    } = usePosSettingsStore();
+  cardSurcharge,
+  defaultDiscountMode,
+  paperWidth,
+  roundingEnabled,
+  setCardSurcharge,
+  setDefaultDiscountMode,
+  setPaperWidth,
+  setRoundingEnabled,
+  resetToDefaults,
+} = usePosSettingsStore();
   
 
   const [surchargeInput, setSurchargeInput] = useState(cardSurcharge.toString());
@@ -214,6 +216,47 @@ export function PosSettingsModal({ isOpen, onClose }: Props) {
                 </p>
                 </div>
         </div>
+
+        {/* Redondeo de importes */}
+                <div className="space-y-2 pt-4 border-t border-ink-100 dark:border-ink-800">
+                <label className="flex items-center justify-between gap-3 cursor-pointer">
+                    <div className="flex items-start gap-2">
+                    <Calculator size={16} className="text-violet-500 mt-0.5 shrink-0" />
+                    <div>
+                        <span className="text-sm font-semibold text-ink-800 dark:text-ink-200 block">
+                        Redondear total final
+                        </span>
+                        <span className="text-xs text-ink-500 dark:text-ink-400 block mt-0.5 leading-relaxed">
+                        Ajusta el monto a múltiplos de 50 o 100 para evitar vueltos con centavos.
+                        </span>
+                    </div>
+                    </div>
+                    <button
+                    type="button"
+                    role="switch"
+                    aria-checked={roundingEnabled}
+                    onClick={() => setRoundingEnabled(!roundingEnabled)}
+                    className={cn(
+                        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+                        roundingEnabled ? 'bg-violet-500' : 'bg-ink-300 dark:bg-ink-700'
+                    )}
+                    >
+                    <span
+                        className={cn(
+                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform',
+                        roundingEnabled ? 'translate-x-5' : 'translate-x-0'
+                        )}
+                    />
+                    </button>
+                </label>
+                {roundingEnabled && (
+                    <p className="text-[11px] text-ink-500 dark:text-ink-400 bg-ink-50 dark:bg-ink-950/40 p-2 rounded leading-relaxed">
+                    Ejemplo: <strong>$12.675</strong> → <strong>$12.700</strong> · <strong>$12.620</strong> → <strong>$12.650</strong>
+                    </p>
+                )}
+                </div>
+
+
 
         {/* Footer */}
         <div className="border-t border-ink-100 px-5 py-4 dark:border-ink-800 shrink-0 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">

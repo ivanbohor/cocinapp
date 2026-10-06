@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Loader2, Search, X, UtensilsCrossed, Sparkles, MapPin } from 'lucide-react';
 import { useIsolateTheme } from '@/hooks/useIsolateTheme';
-import { ContactIcon, buildContactUrl, type Contacto } from '@/components/icons/contact-icons';
+import { ContactIcon, buildContactUrl,  CONTACT_COLORS,  CONTACT_SHORT_LABELS, CONTACT_LABELS, type Contacto } from '@/components/icons/contact-icons';
 
 interface RestauranteInfo {
   nombre: string;
@@ -296,23 +296,50 @@ export default function PublicMenu() {
             </p>
           )}
 
-          {/* Contactos dinámicos */}
-          {restaurante.contactos.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-              {restaurante.contactos.map((c) => (
-                <a
-                  key={c.id}
-                  href={buildContactUrl(c.tipo, c.valor)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-semibold transition"
-                >
-                  <ContactIcon tipo={c.tipo} size={12} />
-                  {c.label || c.valor}
-                </a>
-              ))}
-            </div>
-          )}
+
+          {/* Contactos dinámicos — píldoras rectangulares con marca */}
+            {restaurante.contactos.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+                {restaurante.contactos.map((c) => {
+                  const shortLabel =
+                    c.label?.trim() ||
+                    CONTACT_SHORT_LABELS[c.tipo] ||
+                    'Contacto';
+                  const tooltip = CONTACT_LABELS[c.tipo] || shortLabel;
+                  const color = CONTACT_COLORS[c.tipo] || '#64748b';
+
+                  return (
+                    <a
+                      key={c.id}
+                      href={buildContactUrl(c.tipo, c.valor)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={tooltip}
+                      aria-label={tooltip}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3
+                                text-white shadow-md
+                                transition-all duration-200
+                                hover:shadow-lg hover:brightness-110
+                                active:scale-95
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                      style={{ backgroundColor: color }}
+                    >
+                      <ContactIcon tipo={c.tipo} size={14} />
+                      <span className="text-xs font-semibold whitespace-nowrap">
+                        {shortLabel}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
+
+          
+
+          
+
+          
         </div>
       </header>
 

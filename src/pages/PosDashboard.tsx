@@ -4,7 +4,7 @@ import { usePosStore } from '@/stores/usePosStore';
 import {
   ShoppingCart, Trash2, ArrowLeft, Loader2, Search, Plus, Minus,
   CreditCard, Banknote, Printer, Save, Divide, Percent, UserRound,
-  Settings2, Share2, ChevronUp, X, DollarSign,
+  Settings2, Share2, ChevronUp, X, DollarSign,Filter 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { toast } from '@/stores/useToastStore';
 import { SectionHint } from '@/components/ui/section-hint';
 import { cn } from '@/lib/utils';
+import { roundPosAmount } from '@/lib/pos-utils';
 import { usePosSettingsStore, type DiscountMode } from '@/stores/usePosSettingsStore';
 import { PosSettingsModal } from '@/components/modals/PosSettingsModal';
 import {
@@ -47,7 +48,8 @@ export default function PosDashboard() {
     clearOrder, currentTableId, tableName,
   } = usePosStore();
   const { restauranteId } = useAuthStore();
-  const { cardSurcharge, defaultDiscountMode, paperWidth  } = usePosSettingsStore();
+  const { cardSurcharge, defaultDiscountMode, paperWidth, roundingEnabled  } = usePosSettingsStore();
+
 
   const [products, setProducts] = useState<Product[]>([]);
   const [restauranteInfo, setRestauranteInfo] = useState<RestaurantePOSInfo>({
@@ -61,6 +63,7 @@ export default function PosDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [showPaused, setShowPaused] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('__all__');
 
@@ -88,44 +91,45 @@ export default function PosDashboard() {
     if (restauranteId) fetchDatos();
   }, [restauranteId]);
 
+
   const fetchDatos = async () => {
-    try {
-      setLoading(true);
-      const [prodRes, restRes] = await Promise.all([
-        supabase
-          .from('productos')
-          .select('*')
-          .eq('status', 'Activo')
-          .eq('restaurante_id', restauranteId)
-          .order('category', { ascending: true }),
-        supabase
-          .from('restaurantes')
-          .select('nombre, direccion, whatsapp, logo_url, color_principal')
-          .eq('id', restauranteId)
-          .single(),
+      try {
+        setLoading(true);
+        const [prodRes, restRes] = await Promise.all([
+          supabase
+            .from('productos')
+            .select('*')
+            .eq('restaurante_id', restauranteId)
+            .order('category', { ascending: true }),
+        
+          supabase
+            .from('restaurantes')
+            .select('nombre, direccion, whatsapp, logo_url, color_principal')
+            .eq('id', restauranteId)
+            .single(),
+        ]);
 
-      ]);
+        if (prodRes.error) throw prodRes.error;
+        if (prodRes.data) setProducts(prodRes.data);
 
-      if (prodRes.error) throw prodRes.error;
-      if (prodRes.data) setProducts(prodRes.data);
-
-      if (restRes.data) {
-        setRestauranteInfo({
-          nombre: restRes.data.nombre || '',
-          direccion: restRes.data.direccion || null,
-          whatsapp: restRes.data.whatsapp || null,
-          logo_url: restRes.data.logo_url || null,
-          color_principal: restRes.data.color_principal || '#f97316',
-        });
+        if (restRes.data) {
+          setRestauranteInfo({
+            nombre: restRes.data.nombre || '',
+            direccion: restRes.data.direccion || null,
+            whatsapp: restRes.data.whatsapp || null,
+            logo_url: restRes.data.logo_url || null,
+            color_principal: restRes.data.color_principal || '#f97316',
+          });
+        }
+      } catch (error) {
+        console.error('Error al cargar datos:', error);
+        toast.error('No pudimos cargar el catálogo', 'Revisá tu conexión e intentá de nuevo.');
+      } finally {
+        setLoading(false);
       }
+    };
 
-    } catch (error) {
-      console.error('Error al cargar datos:', error);
-      toast.error('No pudimos cargar el catálogo', 'Revisá tu conexión e intentá de nuevo.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   // Categorías únicas
   const categorias = useMemo(() => {
@@ -135,6 +139,9 @@ export default function PosDashboard() {
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
+      // Si no quiere ver pausados, ocultarlos
+      if (!showPaused && product.status !== 'Activo') return false;
+
       const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.category.toLowerCase().includes(searchTerm.toLowerCase());
@@ -142,7 +149,9 @@ export default function PosDashboard() {
         activeCategory === '__all__' || product.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [products, searchTerm, activeCategory]);
+  }, [products, searchTerm, activeCategory, showPaused]);
+
+  
 
   // ── Cálculos ──────────────────────────────────────────────
   const subTotal = getTotal();
@@ -158,50 +167,56 @@ export default function PosDashboard() {
 
   const afterDiscount = subTotal - discountAmount;
   const surcharge = paymentMethod === 'Tarjeta' ? afterDiscount * (cardSurcharge / 100) : 0;
-  const finalTotal = afterDiscount + surcharge;
-  const amountPerPerson = splitCount > 1 ? finalTotal / splitCount : finalTotal;
+  const rawTotal = afterDiscount + surcharge;
+
+  // Aplicamos redondeo si está habilitado
+    const finalTotal = useMemo(
+      () => (roundingEnabled ? roundPosAmount(rawTotal) : rawTotal),
+      [rawTotal, roundingEnabled]
+    );
+
+    
+    // Diferencia por redondeo (para mostrar en UI y ticket)
+    const roundingDelta = finalTotal - rawTotal;
+
+    const amountPerPerson = splitCount > 1 ? finalTotal / splitCount : finalTotal;
 
   // ── Ticket data helper ────────────────────────────────────
-  const buildTicketData = (): TicketData => {
-    const items = orderItems.map((item) => {
-      const precioUnitario = item.price;
-      return {
-        name: item.name,
-        quantity: item.quantity,
-        price: precioUnitario,
-        originalPrice: precioUnitario,
-      };
-    });
+    const buildTicketData = (): TicketData => {
+  const items = orderItems.map((item) => ({
+    name: item.name,
+    quantity: item.quantity,
+    price: item.price,
+    originalPrice: item.price,
+  }));
 
-    // Distribuir el descuento proporcionalmente para reflejar en los items si fuera necesario.
-    // Por ahora usamos los precios originales y mostramos el descuento aparte en el ticket.
-    return {
-      restaurante: {
-        nombre: restauranteInfo.nombre || 'CocinApp',
-        direccion: restauranteInfo.direccion,
-        whatsapp: restauranteInfo.whatsapp,
-        logo_url: restauranteInfo.logo_url,
-        color_principal: restauranteInfo.color_principal,
-          },
+  // ✅ Fusionamos el redondeo dentro del recargo de tarjeta
+  const totalSurcharge = surcharge + (roundingEnabled ? roundingDelta : 0);
 
-        
-      items,
-      mesa: selectedTable || 'Caja',
-      fecha: new Date(),
-      subtotal: subTotal,
-      discountValue: discountAmount,
-      discountMode,
-      discountAmountRaw: discountNum,
-      surchargeValue: surcharge,
-      surchargePct: cardSurcharge,
-      paymentMethod,
-      total: finalTotal,
-      splitCount,
-      amountPerPerson,
-      paperWidth,   // ← NUEVO
-
-    };
+  return {
+    restaurante: {
+      nombre: restauranteInfo.nombre || 'CocinApp',
+      direccion: restauranteInfo.direccion,
+      whatsapp: restauranteInfo.whatsapp,
+      logo_url: restauranteInfo.logo_url,
+      color_principal: restauranteInfo.color_principal,
+    },
+    items,
+    mesa: selectedTable || 'Caja',
+    fecha: new Date(),
+    subtotal: subTotal,
+    discountValue: discountAmount,
+    discountMode,
+    discountAmountRaw: discountNum,
+    surchargeValue: totalSurcharge,
+    surchargePct: cardSurcharge,
+    paymentMethod,
+    total: finalTotal,
+    splitCount,
+    amountPerPerson,
+    paperWidth,
   };
+};
 
   // ── Guardar cuenta ────────────────────────────────────────
   const handleSaveOrder = async () => {
@@ -615,7 +630,7 @@ export default function PosDashboard() {
                 : 'border-ink-200 dark:border-ink-700 text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800'
             }`}
           >
-            <CreditCard size={18} /> Tarjeta
+            <CreditCard size={18} /> Electrónico
           </button>
         </div>
 
@@ -640,6 +655,12 @@ export default function PosDashboard() {
               <span>+ ${Math.round(surcharge).toLocaleString('es-AR')}</span>
             </div>
           )}
+          {roundingEnabled && Math.abs(roundingDelta) > 0.01 && (
+            <div className="flex justify-between text-violet-600 dark:text-violet-400">
+              <span>Ajuste por redondeo</span>
+              <span>+ ${Math.round(roundingDelta).toLocaleString('es-AR')}</span>
+            </div>
+          )}
 
           <div className="flex justify-between items-end pt-2 border-t border-ink-100 dark:border-ink-800">
             <span className="text-ink-800 dark:text-ink-200 font-bold text-lg">Total</span>
@@ -659,6 +680,7 @@ export default function PosDashboard() {
             </div>
           )}
         </div>
+        
 
         {/* Acciones secundarias: Imprimir, Compartir */}
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -761,6 +783,28 @@ export default function PosDashboard() {
           >
             <Settings2 size={20} />
           </Button>
+          {/* Toggle: mostrar productos pausados */}
+            <Button
+              type="button"
+              variant={showPaused ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => setShowPaused((v) => !v)}
+              aria-label={showPaused ? 'Ocultar productos pausados' : 'Mostrar productos pausados'}
+              title={
+                showPaused
+                  ? 'Ocultando... (click para ver pausados)'
+                  : 'Mostrar productos pausados (para takeaway)'
+              }
+              className={cn(
+                'shrink-0',
+                showPaused && 'bg-amber-500 hover:bg-amber-600 text-white'
+              )}
+            >
+              <Filter size={20} />
+            </Button>
+
+
+
         </div>
 
         {/* Chips de categorías */}
@@ -814,29 +858,43 @@ export default function PosDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() =>
-                    addItem({ ...product, productId: product.id, quantity: 1 })
-                  }
-                  className="bg-white dark:bg-ink-900 p-3 rounded-card shadow-sm border border-ink-200 dark:border-ink-800
-                             hover:border-brand-400 dark:hover:border-brand-500 active:scale-95
-                             transition-all text-left flex flex-col justify-between min-h-[110px] select-none"
-                >
-                  <div>
-                    <span className="text-[10px] text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider line-clamp-1">
-                      {product.category}
+              {filteredProducts.map((product) => {
+                const isPaused = product.status !== 'Activo';
+                return (
+                  <button
+                    key={product.id}
+                    onClick={() =>
+                      addItem({ ...product, productId: product.id, quantity: 1 })
+                    }
+                    className={cn(
+                      'bg-white dark:bg-ink-900 p-3 rounded-card shadow-sm border transition-all text-left flex flex-col justify-between min-h-[110px] select-none active:scale-95',
+                      isPaused
+                        ? 'border-dashed border-amber-300 dark:border-amber-800 opacity-80 hover:opacity-100 hover:border-amber-400'
+                        : 'border-ink-200 dark:border-ink-800 hover:border-brand-400 dark:hover:border-brand-500'
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider line-clamp-1">
+                          {product.category}
+                        </span>
+                        {isPaused && (
+                          <span className="shrink-0 text-[9px] font-bold uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded">
+                            Pausado
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-semibold text-ink-800 dark:text-ink-100 leading-tight line-clamp-2 text-sm">
+                        {product.name}
+                      </p>
+                    </div>
+                    <span className="text-ink-900 dark:text-white font-black text-base">
+                      ${product.price.toLocaleString('es-AR')}
                     </span>
-                    <p className="font-semibold text-ink-800 dark:text-ink-100 leading-tight mt-1 line-clamp-2 text-sm">
-                      {product.name}
-                    </p>
-                  </div>
-                  <span className="text-ink-900 dark:text-white font-black text-base">
-                    ${product.price.toLocaleString('es-AR')}
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
+
             </div>
           )}
         </div>

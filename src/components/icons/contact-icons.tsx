@@ -1,11 +1,12 @@
 // src/components/icons/contact-icons.tsx
 import type { SVGProps } from 'react';
-import { MapPin, Globe, Phone, Mail, ShoppingBag } from 'lucide-react';
+import { MapPin, Globe, Phone, Mail, Bike, ShoppingBag, Wallet } from 'lucide-react';
 import { InstagramIcon } from './InstagramIcon';
 
 export type ContactType =
-  | 'whatsapp' | 'instagram' | 'facebook' | 'tiktok'
-  | 'maps' | 'rappi' | 'pedidosya' | 'website' | 'phone' | 'email';
+  | 'whatsapp' | 'instagram' | 'facebook' | 'tiktok' | 'x'
+  | 'maps' | 'rappi' | 'pedidosya' | 'mercadopago'
+  | 'website' | 'phone' | 'email';
 
 export interface Contacto {
   id: string;
@@ -43,36 +44,96 @@ export function TikTokIcon({ size = 24, ...props }: IconProps) {
   );
 }
 
+export function XIcon({ size = 24, ...props }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/>
+    </svg>
+  );
+}
+
 /* ── Dispatcher: devuelve el ícono según el tipo ──────── */
 export function ContactIcon({ tipo, size = 16 }: { tipo: ContactType; size?: number }) {
   switch (tipo) {
-    case 'whatsapp':  return <WhatsAppIcon size={size} />;
-    case 'instagram': return <InstagramIcon size={size} />;
-    case 'facebook':  return <FacebookIcon size={size} />;
-    case 'tiktok':    return <TikTokIcon size={size} />;
-    case 'maps':      return <MapPin size={size} />;
-    case 'rappi':
-    case 'pedidosya': return <ShoppingBag size={size} />;
-    case 'website':   return <Globe size={size} />;
-    case 'phone':     return <Phone size={size} />;
-    case 'email':     return <Mail size={size} />;
-    default:          return <Globe size={size} />;
+    case 'whatsapp':    return <WhatsAppIcon size={size} />;
+    case 'instagram':   return <InstagramIcon size={size} />;
+    case 'facebook':    return <FacebookIcon size={size} />;
+    case 'tiktok':      return <TikTokIcon size={size} />;
+    case 'x':           return <XIcon size={size} />;
+    case 'maps':        return <MapPin size={size} />;
+    case 'rappi':       return <ShoppingBag size={size} />;
+    case 'pedidosya':   return <Bike size={size} />;
+    case 'mercadopago': return <Wallet size={size} />;
+    case 'website':     return <Globe size={size} />;
+    case 'phone':       return <Phone size={size} />;
+    case 'email':       return <Mail size={size} />;
+    default:            return <Globe size={size} />;
   }
 }
 
 /* ── Catálogo de tipos disponibles para el editor ─────── */
 export const TIPOS_CONTACTO: { value: ContactType; label: string; placeholder: string }[] = [
-  { value: 'whatsapp',  label: 'WhatsApp',           placeholder: '+54 9 11 1234-5678' },
-  { value: 'instagram', label: 'Instagram',          placeholder: '@turestaurante' },
-  { value: 'facebook',  label: 'Facebook',           placeholder: 'https://facebook.com/tu-pagina' },
-  { value: 'tiktok',    label: 'TikTok',             placeholder: '@turestaurante' },
-  { value: 'maps',      label: 'Ubicación (Maps)',   placeholder: 'https://maps.google.com/...' },
-  { value: 'rappi',     label: 'Rappi',              placeholder: 'https://rappi.com/...' },
-  { value: 'pedidosya', label: 'PedidosYa',          placeholder: 'https://pedidosya.com/...' },
-  { value: 'website',   label: 'Sitio web',          placeholder: 'https://turestaurante.com' },
-  { value: 'phone',     label: 'Teléfono',           placeholder: '+54 11 1234-5678' },
-  { value: 'email',     label: 'Email',              placeholder: 'contacto@turestaurante.com' },
+  { value: 'whatsapp',    label: 'WhatsApp',           placeholder: '+54 9 11 1234-5678' },
+  { value: 'instagram',   label: 'Instagram',          placeholder: '@turestaurante' },
+  { value: 'facebook',    label: 'Facebook',           placeholder: 'https://facebook.com/tu-pagina' },
+  { value: 'tiktok',      label: 'TikTok',             placeholder: '@turestaurante' },
+  { value: 'x',           label: 'X (Twitter)',        placeholder: '@turestaurante' },
+  { value: 'maps',        label: 'Ubicación (Maps)',   placeholder: 'https://maps.google.com/...' },
+  { value: 'rappi',       label: 'Rappi',              placeholder: 'https://rappi.com/...' },
+  { value: 'pedidosya',   label: 'PedidosYa',          placeholder: 'https://pedidosya.com/...' },
+  { value: 'mercadopago', label: 'MercadoPago',        placeholder: 'https://link.mercadopago.com.ar/...' },
+  { value: 'website',     label: 'Sitio web',          placeholder: 'https://turestaurante.com' },
+  { value: 'phone',       label: 'Teléfono',           placeholder: '+54 11 1234-5678' },
+  { value: 'email',       label: 'Email',              placeholder: 'contacto@turestaurante.com' },
 ];
+
+/* ── Colores de marca por tipo (para botones circulares) ─ */
+export const CONTACT_COLORS: Record<ContactType, string> = {
+  whatsapp:    '#25D366',
+  instagram:   '#E4405F',
+  facebook:    '#1877F2',
+  tiktok:      '#000000',
+  x:           '#000000',
+  maps:        '#4285F4',
+  rappi:       '#FF441F',
+  pedidosya:   '#FA0050',
+  mercadopago: '#00B1EA',
+  website:     '#64748b',
+  phone:       '#10b981',
+  email:       '#f59e0b',
+};
+
+/* ── Etiquetas amigables para los tooltips ───────────── */
+export const CONTACT_LABELS: Record<ContactType, string> = {
+  whatsapp:    'Escribinos por WhatsApp',
+  instagram:   'Seguinos en Instagram',
+  facebook:    'Visitanos en Facebook',
+  tiktok:      'Seguinos en TikTok',
+  x:           'Seguinos en X',
+  maps:        'Ver ubicación en Maps',
+  rappi:       'Pedir por Rappi',
+  pedidosya:   'Pedir por PedidosYa',
+  mercadopago: 'Pagar con MercadoPago',
+  website:     'Sitio web',
+  phone:       'Llamar',
+  email:       'Enviar email',
+};
+
+/* ── Etiquetas cortas para píldoras ──────────────────── */
+export const CONTACT_SHORT_LABELS: Record<ContactType, string> = {
+  whatsapp:    'WhatsApp',
+  instagram:   'Instagram',
+  facebook:    'Facebook',
+  tiktok:      'TikTok',
+  x:           'X',
+  maps:        'Ubicación',
+  rappi:       'Rappi',
+  pedidosya:   'PedidosYa',
+  mercadopago: 'MercadoPago',
+  website:     'Sitio web',
+  phone:       'Llamar',
+  email:       'Email',
+};
 
 /* ── Helper: URL final del contacto ───────────────────── */
 export function buildContactUrl(tipo: ContactType, valor: string): string {
@@ -83,6 +144,7 @@ export function buildContactUrl(tipo: ContactType, valor: string): string {
     case 'instagram': return `https://instagram.com/${v.replace(/^@/, '')}`;
     case 'facebook':  return `https://facebook.com/${v.replace(/^@/, '')}`;
     case 'tiktok':    return `https://tiktok.com/@${v.replace(/^@/, '')}`;
+    case 'x':         return `https://x.com/${v.replace(/^@/, '')}`;
     case 'phone':     return `tel:${v.replace(/[^0-9+]/g, '')}`;
     case 'email':     return `mailto:${v}`;
     default:          return v;
