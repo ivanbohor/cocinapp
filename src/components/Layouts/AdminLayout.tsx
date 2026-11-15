@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
   BarChart3, Utensils, Table, Wallet, Package, Settings,
   LayoutDashboard, LogOut, Sun, Moon, Menu, X, Receipt,  Home,
+  HelpCircle,
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -117,6 +118,15 @@ export default function AdminLayout() {
             {isDarkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
             {isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}
           </button>
+
+                    {/* Botón de Ayuda / Soporte */}
+          <a
+            href="mailto:holacocinapp@gmail.com?subject=Soporte%20CocinApp"
+            className="flex w-full items-center gap-3 px-3 py-3 rounded-lg font-medium text-ink-400 hover:text-white hover:bg-ink-800 transition-all"
+          >
+            <HelpCircle size={20} />
+            Ayuda y Soporte
+          </a>
 
           <button
             onClick={handleLogout}

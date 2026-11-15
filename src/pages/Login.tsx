@@ -447,6 +447,22 @@ export default function Login() {
                 ))}
               </ul>
             )}
+             {/* Línea de contacto para clientes potenciales */}
+            {isLoginView && (
+              <div className="mt-8 pt-6 border-t border-ink-200 dark:border-ink-800 text-center">
+                <p className="text-sm text-ink-600 dark:text-ink-400 mb-3">
+                  ¿Tenés dudas o querés asesoramiento personalizado?
+                </p>
+                <a
+                  href="mailto:holacocinapp@gmail.com?subject=Consulta%20sobre%20CocinApp"
+                  className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
+                >
+                  <Mail size={16} />
+                  Escribinos a holacocinapp@gmail.com
+                </a>
+              </div>
+            )}
+            
           </div>
         </section>
       </div>

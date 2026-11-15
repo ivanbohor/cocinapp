@@ -554,7 +554,7 @@ async function renderClasicoOVibrante(
 
   ctx.fillStyle = accentColor;
   ctx.font = 'bold 32px ui-monospace, "SF Mono", Menlo, monospace';
-  ctx.fillText(`cocinapp-nine.vercel.app/m/${restaurante.slug}`, W / 2, footerY + 44);
+  ctx.fillText(`cocinapp.online/m/${restaurante.slug}`, W / 2, footerY + 44);
 
   ctx.fillStyle = isVibrant ? 'rgba(255,255,255,0.45)' : '#94a3b8';
   ctx.font = '500 22px ui-sans-serif, system-ui, -apple-system, sans-serif';
