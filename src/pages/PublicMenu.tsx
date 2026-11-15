@@ -528,7 +528,7 @@ export default function PublicMenu() {
       </main>
 
       <footer className="text-center text-xs text-slate-400 mt-12 py-4">
-        Carta digital potenciada por <span className="font-bold text-indigo-500">CocinApp</span>
+        Carta digital potenciada por <span className="font-bold text-indigo-500">CocinApp.online</span>
       </footer>
     </div>
   );

@@ -148,7 +148,7 @@ export function QRModal({
 
       ctx.fillStyle = '#94a3b8'; // ink-400
       ctx.font = '500 14px ui-sans-serif, system-ui, -apple-system, sans-serif';
-      ctx.fillText('cocinapp-nine.vercel.app', canvas.width / 2, canvas.height - 34);
+      ctx.fillText('cocinapp.online', canvas.width / 2, canvas.height - 34);
 
       // Guardamos el canvas para la descarga
       downloadCanvasRef.current = canvas;
