@@ -9,6 +9,7 @@ import {
   Loader2, ChefHat, QrCode, BarChart3, UtensilsCrossed,
   AlertCircle, CheckCircle2, ArrowRight, Mail,
 } from 'lucide-react';
+import { ChatWidget } from '@/components/ChatWidget';
 
 type ViewMode = 'login' | 'register' | 'check-email';
 
@@ -192,6 +193,8 @@ export default function Login() {
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-900 dark:bg-ink-950 dark:text-ink-100">
+      <ChatWidget /> {/* 👈 Acá */}
+
       <div className="mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 lg:grid-cols-2">
 
         {/* Panel de marca */}

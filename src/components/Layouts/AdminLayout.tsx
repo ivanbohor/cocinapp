@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { supabase } from '@/lib/supabase';
 import { useStockAlarms } from '@/hooks/useStockAlarms';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ChatWidget } from '@/components/ChatWidget';
 
 import {
   BarChart3, Utensils, Table, Wallet, Package, Settings,
@@ -45,6 +46,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-ink-50 dark:bg-ink-950 transition-colors duration-300">
+      <ChatWidget /> {/* 👈 Acá */}
 
       {/* NAVBAR MÓVIL */}
       <div className="md:hidden flex items-center justify-between bg-ink-900 dark:bg-ink-950 text-white p-4 sticky top-0 z-40 shadow-md">

@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Search, X, UtensilsCrossed, Sparkles, MapPin } from 'lucide-react';
+import { Loader2, Search, X, UtensilsCrossed, Sparkles, MapPin,ChefHat  } from 'lucide-react';
 import { useIsolateTheme } from '@/hooks/useIsolateTheme';
 import { ContactIcon, buildContactUrl,  CONTACT_COLORS,  CONTACT_SHORT_LABELS, CONTACT_LABELS, type Contacto } from '@/components/icons/contact-icons';
 
@@ -526,10 +526,35 @@ export default function PublicMenu() {
           ))
         )}
       </main>
-
-      <footer className="text-center text-xs text-slate-400 mt-12 py-4">
-        Carta digital potenciada por <span className="font-bold text-indigo-500">CocinApp.online</span>
+            <footer className="text-center mt-12 py-8 border-t border-slate-200/50 dark:border-slate-800/50">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-1">
+          Carta digital potenciada por
+        </p>
+        
+        <a
+          href="https://cocinapp.online"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 font-black text-sm text-brand-600 hover:text-brand-700 dark:text-brand-500 dark:hover:text-brand-400 transition-colors"
+        >
+          <ChefHat size={16} />
+          CocinApp
+        </a>
+        
+        <p className="mt-3 text-[11px] text-slate-400 dark:text-slate-500">
+          ¿Tenés un restaurante?{' '}
+          <a
+            href="https://cocinapp.online"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-brand-500 hover:underline underline-offset-2"
+          >
+            Creá tu menú gratis
+          </a>
+        </p>
       </footer>
+
+      
     </div>
   );
 }
