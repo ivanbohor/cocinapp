@@ -4,7 +4,8 @@ import { usePosStore } from '@/stores/usePosStore';
 import {
   ShoppingCart, Trash2, ArrowLeft, Loader2, Search, Plus, Minus,
   CreditCard, Banknote, Printer, Save, Divide, Percent, UserRound,
-  Settings2, Share2, ChevronUp, X, DollarSign,Filter 
+  Settings2, Share2, ChevronUp, X, DollarSign,Filter, 
+  Building2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,7 +49,13 @@ export default function PosDashboard() {
     clearOrder, currentTableId, tableName,
   } = usePosStore();
   const { restauranteId } = useAuthStore();
-  const { cardSurcharge, defaultDiscountMode, paperWidth, roundingEnabled  } = usePosSettingsStore();
+
+    const { 
+    cardSurcharge, 
+    transferEnabled, transferSurchargeMode, transferSurchargePercent,tierMinPrice,
+    tierThreshold, tierLowSurcharge, tierHighSurcharge,
+    defaultDiscountMode, paperWidth, roundingEnabled
+  } = usePosSettingsStore();
 
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -67,7 +74,8 @@ export default function PosDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('__all__');
 
-  const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Tarjeta'>('Efectivo');
+  const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
+
   const [selectedTable, setSelectedTable] = useState(tableName || '');
   const [discountValue, setDiscountValue] = useState<string>('');
   const [discountMode, setDiscountMode] = useState<DiscountMode>(defaultDiscountMode);
@@ -165,21 +173,57 @@ export default function PosDashboard() {
     return Math.min(discountNum, subTotal);
   }, [discountNum, discountMode, subTotal]);
 
-  const afterDiscount = subTotal - discountAmount;
-  const surcharge = paymentMethod === 'Tarjeta' ? afterDiscount * (cardSurcharge / 100) : 0;
-  const rawTotal = afterDiscount + surcharge;
+    const afterDiscount = subTotal - discountAmount;
+
+  // 1. Cálculo del recargo GLOBAL (para el total)
+  const surcharge = useMemo(() => {
+    if (paymentMethod === 'Efectivo') return 0;
+    
+    if (paymentMethod === 'Tarjeta') {
+      return afterDiscount * (cardSurcharge / 100);
+    }
+    
+    // Transferencia
+    if (transferSurchargeMode === 'percent') {
+      return afterDiscount * (transferSurchargePercent / 100);
+    }
+    
+    // Transferencia Escalonada con Mínimo
+    return orderItems.reduce((acc, item) => {
+      if (item.price < tierMinPrice) return acc; 
+      const surchargePerUnit = item.price > tierThreshold ? tierHighSurcharge : tierLowSurcharge;
+      return acc + (surchargePerUnit * item.quantity);
+    }, 0);
+  }, [paymentMethod, afterDiscount, cardSurcharge, transferSurchargeMode, transferSurchargePercent, orderItems, tierMinPrice, tierThreshold, tierLowSurcharge, tierHighSurcharge]);
+
+  // 2. Calcula el precio final de 1 unidad (para mostrar tachado en la UI)
+  const getItemUnitPrice = (item: typeof orderItems[0]) => {
+    if (paymentMethod === 'Efectivo') return item.price;
+    if (paymentMethod === 'Tarjeta') return item.price * (1 + cardSurcharge / 100);
+    if (paymentMethod === 'Transferencia') {
+      if (transferSurchargeMode === 'percent') return item.price * (1 + transferSurchargePercent / 100);
+      
+      // Escalonado
+      if (item.price < tierMinPrice) return item.price;
+      const unitSurcharge = item.price > tierThreshold ? tierHighSurcharge : tierLowSurcharge;
+      return item.price + unitSurcharge;
+    }
+    return item.price;
+  };
+
+  // 3. Total final
+  const rawTotal = afterDiscount + surcharge; // Total antes de redondeo
 
   // Aplicamos redondeo si está habilitado
-    const finalTotal = useMemo(
-      () => (roundingEnabled ? roundPosAmount(rawTotal) : rawTotal),
-      [rawTotal, roundingEnabled]
-    );
+  const finalTotal = useMemo(
+    () => (roundingEnabled ? roundPosAmount(rawTotal) : rawTotal),
+    [rawTotal, roundingEnabled]
+  );
+  
+  // Diferencia por redondeo (para mostrar en UI y ticket)
+  const roundingDelta = finalTotal - rawTotal;
+  const amountPerPerson = splitCount > 1 ? finalTotal / splitCount : finalTotal;
 
-    
-    // Diferencia por redondeo (para mostrar en UI y ticket)
-    const roundingDelta = finalTotal - rawTotal;
-
-    const amountPerPerson = splitCount > 1 ? finalTotal / splitCount : finalTotal;
 
   // ── Ticket data helper ────────────────────────────────────
     const buildTicketData = (): TicketData => {
@@ -534,9 +578,20 @@ export default function PosDashboard() {
               </div>
 
               <div className="flex justify-between items-center mt-1">
-                <span className="font-bold text-ink-600 dark:text-ink-300">
-                  ${item.price.toLocaleString('es-AR')}
-                </span>
+                <div className="flex flex-col">
+            <span className={cn(
+              "font-bold",
+              paymentMethod !== 'Efectivo' ? "text-xs text-ink-400 line-through" : "text-ink-600 dark:text-ink-300"
+            )}>
+              ${item.price.toLocaleString('es-AR')}
+            </span>
+            {paymentMethod !== 'Efectivo' && (
+              <span className="font-black text-brand-600 dark:text-brand-400">
+                ${Math.round(getItemUnitPrice(item)).toLocaleString('es-AR')}
+              </span>
+            )}
+          </div>
+               
 
                 <div className="flex items-center bg-ink-100 dark:bg-ink-900 rounded-lg p-1 border border-ink-200 dark:border-ink-700">
                   <button
@@ -611,28 +666,50 @@ export default function PosDashboard() {
         </div>
 
         {/* Método de pago */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
+                {/* Método de pago */}
+        <div className={cn(
+          "grid gap-2 mb-3",
+          transferEnabled ? "grid-cols-3" : "grid-cols-2"
+        )}>
           <button
             onClick={() => setPaymentMethod('Efectivo')}
-            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 font-semibold transition-all ${
+            className={`flex flex-col items-center justify-center py-2 rounded-xl border-2 font-semibold transition-all ${
               paymentMethod === 'Efectivo'
                 ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
                 : 'border-ink-200 dark:border-ink-700 text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800'
             }`}
           >
-            <Banknote size={18} /> Efectivo
+            <Banknote size={18} className="mb-1" /> 
+            <span className="text-[11px] leading-tight">Efectivo</span>
           </button>
+          
           <button
             onClick={() => setPaymentMethod('Tarjeta')}
-            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 font-semibold transition-all ${
+            className={`flex flex-col items-center justify-center py-2 rounded-xl border-2 font-semibold transition-all ${
               paymentMethod === 'Tarjeta'
                 ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400'
                 : 'border-ink-200 dark:border-ink-700 text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800'
             }`}
           >
-            <CreditCard size={18} /> Electrónico
+            <CreditCard size={18} className="mb-1" /> 
+            <span className="text-[11px] leading-tight">Tarjeta</span>
           </button>
+
+          {transferEnabled && (
+            <button
+              onClick={() => setPaymentMethod('Transferencia')}
+              className={`flex flex-col items-center justify-center py-2 rounded-xl border-2 font-semibold transition-all ${
+                paymentMethod === 'Transferencia'
+                  ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400'
+                  : 'border-ink-200 dark:border-ink-700 text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800'
+              }`}
+            >
+              <Building2 size={18} className="mb-1" /> 
+              <span className="text-[11px] leading-tight">Transf.</span>
+            </button>
+          )}
         </div>
+        
 
         {/* Totales */}
         <div className="space-y-1.5 mb-3 text-sm font-medium">
@@ -649,12 +726,18 @@ export default function PosDashboard() {
               <span>- ${Math.round(discountAmount).toLocaleString('es-AR')}</span>
             </div>
           )}
-          {paymentMethod === 'Tarjeta' && surcharge > 0 && (
+                              {paymentMethod !== 'Efectivo' && surcharge > 0 && (
             <div className="flex justify-between text-brand-600 dark:text-brand-400">
-              <span>Recargo Tarjeta ({cardSurcharge}%)</span>
+              <span>
+                Recargo {paymentMethod === 'Tarjeta' ? 'Tarjeta' : 'Transferencia'} {' '}
+                {paymentMethod === 'Tarjeta' || transferSurchargeMode === 'percent' 
+                  ? `(${paymentMethod === 'Tarjeta' ? cardSurcharge : transferSurchargePercent}%)` 
+                  : '(Escalonado)'}
+              </span>
               <span>+ ${Math.round(surcharge).toLocaleString('es-AR')}</span>
             </div>
           )}
+          
           {roundingEnabled && Math.abs(roundingDelta) > 0.01 && (
             <div className="flex justify-between text-violet-600 dark:text-violet-400">
               <span>Ajuste por redondeo</span>
