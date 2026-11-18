@@ -5,18 +5,22 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SectionHint } from '@/components/ui/section-hint';
+import { FormattedWelcomeText } from '@/components/ui/formatted-welcome-text';
 import {
   Loader2, Store, Link as LinkIcon, Palette, MessageSquare,
   Copy, CheckCircle2, ExternalLink, Image as ImageIcon,
   Smartphone, Search, UtensilsCrossed, Sparkles, Phone,
   MapPin, QrCode, Type as TypeIcon, ImagePlus,
 } from 'lucide-react';
-import { ContactIcon, CONTACT_COLORS,CONTACT_SHORT_LABELS, type Contacto } from '@/components/icons/contact-icons';
-// Al inicio del archivo, junto a los demás imports
+import {
+  ContactIcon,
+  CONTACT_BADGE_BG,
+  type Contacto,
+} from '@/components/icons/contact-icons';
 import { toast } from '@/stores/useToastStore';
 import { QRModal } from '@/components/modals/QRModal';
 import { ContactosEditor } from '@/components/forms/ContactosEditor';
-
+import { WelcomeMessageEditor } from '@/components/forms/WelcomeMessageEditor';
 
 type ColorTexto = 'auto' | 'oscuro' | 'claro';
 type FondoTipo = 'color' | 'imagen';
@@ -26,24 +30,24 @@ export default function AdminRestaurant() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedDelivery, setCopiedDelivery] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nombre: '',
     slug: '',
-    direccion: '',                    // ← NUEVO
+    direccion: '',
     color_principal: '#4f46e5',
     color_fondo: '#f8fafc',
     color_tarjeta: '#ffffff',
-    color_texto: 'auto' as ColorTexto, // ← NUEVO
-    fondo_tipo: 'color' as FondoTipo,  // ← NUEVO
-    fondo_imagen_url: '',              // ← NUEVO
+    color_texto: 'auto' as ColorTexto,
+    fondo_tipo: 'color' as FondoTipo,
+    fondo_imagen_url: '',
     mensaje_bienvenida: '',
     logo_url: '',
     mostrar_sugerencias: true,
   });
 
-  // ← NUEVO: contactos dinámicos
   const [contactos, setContactos] = useState<Contacto[]>([]);
 
   useEffect(() => {
@@ -76,12 +80,10 @@ export default function AdminRestaurant() {
           mostrar_sugerencias: data.mostrar_sugerencias ?? true,
         });
 
-        // ← NUEVO: cargar contactos (con migración transparente)
         let loadedContacts: Contacto[] = [];
         if (Array.isArray(data.contactos) && data.contactos.length > 0) {
           loadedContacts = data.contactos as Contacto[];
         } else {
-          // Migración: si tiene whatsapp/instagram viejos, los pasamos al formato nuevo
           if (data.whatsapp) {
             loadedContacts.push({
               id: crypto.randomUUID(),
@@ -122,7 +124,6 @@ export default function AdminRestaurant() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      // ← NUEVO: filtrar contactos incompletos antes de guardar
       const contactosLimpios = contactos.filter((c) => c.valor.trim() !== '');
 
       const fullPayload: Record<string, unknown> = {
@@ -171,7 +172,6 @@ export default function AdminRestaurant() {
         throw error;
       }
 
-      // Sincronizar contactos filtrados al estado local
       setContactos(contactosLimpios);
 
       toast.success('Configuración guardada', 'Tus cambios ya están visibles en la carta digital.');
@@ -189,12 +189,24 @@ export default function AdminRestaurant() {
   };
 
   const publicUrl = formData.slug ? `${window.location.origin}/m/${formData.slug}` : '';
+  const deliveryUrl = publicUrl ? `${publicUrl}?pedir=1` : '';
 
   const copyToClipboard = () => {
     if (!publicUrl) return;
     navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyDeliveryToClipboard = () => {
+    if (!deliveryUrl) return;
+    navigator.clipboard.writeText(deliveryUrl);
+    setCopiedDelivery(true);
+    toast.success(
+      'Link de Delivery copiado',
+      'Pegalo en WhatsApp o redes para que tus clientes armen su pedido.'
+    );
+    setTimeout(() => setCopiedDelivery(false), 2000);
   };
 
   if (loading) {
@@ -206,7 +218,6 @@ export default function AdminRestaurant() {
     );
   }
 
-  // Estilo del header del mockup según fondo_tipo
   const headerStyle: React.CSSProperties =
     formData.fondo_tipo === 'imagen' && formData.fondo_imagen_url
       ? {
@@ -223,7 +234,7 @@ export default function AdminRestaurant() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Perfil de Negocio</h2>
-            <SectionHint text="Personalizá la identidad, logo y colores de tu Menú Digital en tiempo real. Obtené el enlace único para imprimir tu QR o compartir en redes." />
+            <SectionHint text="Personalizá la identidad, logo y colores de tu Menú Digital en tiempo real. Obtené el enlace único para imprimir tu QR o compartir para Delivery." />
           </div>
           <p className="text-slate-500 text-sm">Personaliza la identidad y tu Menú Digital para tus clientes.</p>
         </div>
@@ -262,7 +273,6 @@ export default function AdminRestaurant() {
               />
             </div>
 
-            {/* ← NUEVO: Dirección */}
             <div className="space-y-1.5 md:col-span-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                 <MapPin size={16} /> Dirección (Opcional)
@@ -326,25 +336,25 @@ export default function AdminRestaurant() {
                 </div>
               </div>
 
+              {/* MENSAJE DE BIENVENIDA CON FORMATO */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <MessageSquare size={16} /> Mensaje de Bienvenida
                 </label>
-                <Input
+                <WelcomeMessageEditor
                   value={formData.mensaje_bienvenida}
-                  onChange={(e) => setFormData({ ...formData, mensaje_bienvenida: e.target.value })}
-                  className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                  placeholder="¡Bienvenidos a nuestra carta digital!"
+                  onChange={(nextValue) =>
+                    setFormData({ ...formData, mensaje_bienvenida: nextValue })
+                  }
                 />
               </div>
 
-              {/* COLOR DE MARCA — AHORA CON OPCIÓN DE FONDO POR IMAGEN */}
+              {/* ENCABEZADO DE LA CARTA */}
               <div className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3">
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <Palette size={14} /> Encabezado de la Carta
                 </label>
 
-                {/* Selector de tipo: color vs imagen */}
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -370,7 +380,6 @@ export default function AdminRestaurant() {
                   </button>
                 </div>
 
-                {/* Contenido condicional */}
                 {formData.fondo_tipo === 'color' ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -435,7 +444,6 @@ export default function AdminRestaurant() {
                   </div>
                 </div>
 
-                {/* ← NUEVO: Color de texto */}
                 <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
                     <TypeIcon size={12} /> Texto
@@ -492,7 +500,7 @@ export default function AdminRestaurant() {
                 </div>
               </div>
 
-              {/* ENLACE Y BOTONES DE COMPARTIR */}
+              {/* ENLACE Y BOTONES DE COMPARTIR (SALÓN VS DELIVERY) */}
               <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -506,10 +514,12 @@ export default function AdminRestaurant() {
                 </div>
 
                 {publicUrl ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-indigo-600 dark:text-indigo-400 break-all select-all">
                       {publicUrl}
                     </div>
+
+                    {/* Fila 1: Carta Salón (URL limpia) + Ver Carta */}
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -518,7 +528,7 @@ export default function AdminRestaurant() {
                         className="w-1/2 flex items-center justify-center gap-2 dark:border-slate-700 dark:text-slate-300 text-xs"
                       >
                         {copied ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                        {copied ? '¡Copiado!' : 'Copiar URL'}
+                        {copied ? '¡Copiado!' : 'Copiar URL Salón'}
                       </Button>
                       <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="w-1/2">
                         <Button type="button" className="w-full bg-slate-900 dark:bg-indigo-600 text-white text-xs flex items-center justify-center gap-1.5">
@@ -526,6 +536,30 @@ export default function AdminRestaurant() {
                         </Button>
                       </a>
                     </div>
+
+                    {/* Fila 2: Copiar Link para Delivery (con carrito WhatsApp) */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={copyDeliveryToClipboard}
+                      className="w-full flex items-center justify-center gap-2 border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55 text-xs font-semibold"
+                    >
+                      {copiedDelivery ? (
+                        <>
+                          <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" />
+                          <span>¡Link de Delivery copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#25D366] text-white">
+                            <ContactIcon tipo="whatsapp" size={10} />
+                          </span>
+                          <span>Copiar link para Delivery (WhatsApp)</span>
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Fila 3: Generar QR impreso (Modo Salón) */}
                     <Button
                       type="button"
                       variant="outline"
@@ -553,7 +587,7 @@ export default function AdminRestaurant() {
                 <p className="text-[11px] text-slate-400">Renderizado en tiempo real</p>
               </div>
 
-              <div className="w-[280px] sm:w-[310px] h-[500px] rounded-[38px] p-2.5 bg-slate-900 border-4 border-slate-700 dark:border-slate-800 shadow-2xl relative flex flex-col overflow-hidden select-none">
+              <div className="w-[280px] sm:w-[310px] h-[520px] rounded-[38px] p-2.5 bg-slate-900 border-4 border-slate-700 dark:border-slate-800 shadow-2xl relative flex flex-col overflow-hidden select-none">
                 <div className="absolute top-3.5 left-1/2 -translate-x-1/2 w-24 h-4 bg-black rounded-full z-30 flex items-center justify-center">
                   <div className="w-2 h-2 rounded-full bg-slate-800 mr-2"></div>
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-900/50"></div>
@@ -563,7 +597,7 @@ export default function AdminRestaurant() {
                   className="w-full h-full rounded-[28px] overflow-y-auto overflow-x-hidden flex flex-col transition-colors duration-300 relative text-left"
                   style={{ backgroundColor: formData.color_fondo }}
                 >
-                  {/* Header dinámico (color o imagen) */}
+                  {/* Header dinámico */}
                   <div
                     className="pt-8 pb-5 px-3 text-center text-white relative shadow-sm transition-all duration-300"
                     style={headerStyle}
@@ -585,50 +619,45 @@ export default function AdminRestaurant() {
                         {formData.nombre.trim() || 'Nombre de tu Local'}
                       </h4>
 
-                      {/* ← NUEVO: Dirección en el header */}
                       {formData.direccion.trim() && (
                         <p className="text-[9px] text-white/80 font-medium mt-1 flex items-center gap-1">
                           <MapPin size={9} /> {formData.direccion}
                         </p>
                       )}
 
-                      <p className="text-[10px] text-white/90 font-medium mt-1 line-clamp-2 leading-tight max-w-[200px]">
-                        {formData.mensaje_bienvenida.trim() || '¡Bienvenidos a nuestra carta digital!'}
-                      </p>
+                      {/* Mensaje de bienvenida multilínea con negrita y subrayado */}
+                      <div className="mt-1.5 px-2.5 py-1 rounded-2xl bg-black/15 border border-white/15 max-w-[235px]">
+                        <FormattedWelcomeText
+                          text={
+                            formData.mensaje_bienvenida.trim() ||
+                            '¡Bienvenidos a nuestra carta digital!'
+                          }
+                          className="text-[10px] text-white/95 font-medium leading-snug space-y-0.5"
+                        />
+                      </div>
 
-
+                      {/* Medallones oficiales sincronizados con PublicMenu */}
                       {contactos.filter((c) => c.valor.trim()).length > 0 && (
-                        <div className="flex flex-wrap items-center justify-center gap-1 mt-2">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2.5">
                           {contactos
                             .filter((c) => c.valor.trim())
-                            .slice(0, 4)
+                            .slice(0, 6)
                             .map((c) => {
-                              const shortLabel =
-                                c.label?.trim() ||
-                                CONTACT_SHORT_LABELS[c.tipo] ||
-                                'Contacto';
-                              const color = CONTACT_COLORS[c.tipo] || '#64748b';
+                              const badgeBg =
+                                CONTACT_BADGE_BG[c.tipo.toLowerCase()] || '#334155';
 
                               return (
                                 <span
                                   key={c.id}
-                                  className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-white shadow-sm"
-                                  style={{ backgroundColor: color }}
+                                  style={{ background: badgeBg }}
+                                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-white shadow-xs ring-1 ring-white/30 overflow-hidden"
                                 >
-                                  <ContactIcon tipo={c.tipo} size={9} />
-                                  <span className="text-[8px] font-semibold whitespace-nowrap">
-                                    {shortLabel}
-                                  </span>
+                                  <ContactIcon tipo={c.tipo} size={13} />
                                 </span>
                               );
                             })}
                         </div>
                       )}
-
-                   
-                  
-
-                     
                     </div>
                   </div>
 
@@ -730,4 +759,3 @@ export default function AdminRestaurant() {
     </div>
   );
 }
-
